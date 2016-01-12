@@ -36,7 +36,7 @@
 
 #include "DeckLinkAPI.h"
 #include "Capture.h"
-
+#include "us_ihmc_javadecklink_Capture.h"
 
 
 
@@ -115,13 +115,16 @@ void DeckLinkCaptureDelegate::Stop()
     }
 }
 
-void stopCapture(jlong delegatePtr)
+JNIEXPORT void JNICALL Java_us_ihmc_javadecklink_Capture_stopCaptureNative
+  (JNIEnv *, jclass, jlong delegatePtr)
 {
     DeckLinkCaptureDelegate* delegate = (DeckLinkCaptureDelegate*) delegatePtr;
     delegate->Stop();
 }
 
-jlong startCapture(int idx, int displayModeId)
+
+JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
+  (JNIEnv *, jclass, jint idx, jint displayModeId)
 {
 
 	IDeckLinkIterator*				deckLinkIterator = NULL;

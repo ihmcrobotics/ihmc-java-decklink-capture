@@ -1,2 +1,8 @@
 build/
 *.user
+.classpath
+.gradle
+bin
+classes
+.settings
+.project
