@@ -32,24 +32,16 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <csignal>
+#include <jni.h>
 
 #include "DeckLinkAPI.h"
 #include "Capture.h"
-#include "Config.h"
 
-static pthread_mutex_t	g_sleepMutex;
-static pthread_cond_t	g_sleepCond;
-static int				g_videoOutputFile = -1;
-static int				g_audioOutputFile = -1;
-static bool				g_do_exit = false;
 
-static BMDConfig		g_config;
 
-static IDeckLinkInput*	g_deckLinkInput = NULL;
 
-static unsigned long	g_frameCount = 0;
 
-DeckLinkCaptureDelegate::DeckLinkCaptureDelegate() : m_refCount(1)
+DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(IDeckLink* decklink, IDeckLinkInput* decklinkInput) : m_refCount(1), decklink(decklink), decklinkInput(decklinkInput)
 {
 }
 
@@ -71,163 +63,82 @@ ULONG DeckLinkCaptureDelegate::Release(void)
 
 HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame, IDeckLinkAudioInputPacket* audioFrame)
 {
-	IDeckLinkVideoFrame*				rightEyeFrame = NULL;
-	IDeckLinkVideoFrame3DExtensions*	threeDExtensions = NULL;
-	void*								frameBytes;
-	void*								audioFrameBytes;
+    void*								frameBytes;
 
 	// Handle Video Frame
 	if (videoFrame)
-	{
-		// If 3D mode is enabled we retreive the 3D extensions interface which gives.
-		// us access to the right eye frame by calling GetFrameForRightEye() .
-		if ( (videoFrame->QueryInterface(IID_IDeckLinkVideoFrame3DExtensions, (void **) &threeDExtensions) != S_OK) ||
-			(threeDExtensions->GetFrameForRightEye(&rightEyeFrame) != S_OK))
-		{
-			rightEyeFrame = NULL;
-		}
+    {
 
-		if (threeDExtensions)
-			threeDExtensions->Release();
 
 		if (videoFrame->GetFlags() & bmdFrameHasNoInputSource)
 		{
-			printf("Frame received (#%lu) - No input signal detected\n", g_frameCount);
+            printf("Frame received - No input signal detected\n");
 		}
 		else
-		{
-			const char *timecodeString = NULL;
-			if (g_config.m_timecodeFormat != 0)
-			{
-				IDeckLinkTimecode *timecode;
-				if (videoFrame->GetTimecode(g_config.m_timecodeFormat, &timecode) == S_OK)
-				{
-					timecode->GetString(&timecodeString);
-				}
-			}
+        {
 
-			printf("Frame received (#%lu) [%s] - %s - Size: %li bytes\n",
-				g_frameCount,
-				timecodeString != NULL ? timecodeString : "No timecode",
-				rightEyeFrame != NULL ? "Valid Frame (3D left/right)" : "Valid Frame",
+            printf("Frame received - Size: %li bytes\n",
 				videoFrame->GetRowBytes() * videoFrame->GetHeight());
 
-			if (timecodeString)
-				free((void*)timecodeString);
-
-			if (g_videoOutputFile != -1)
-			{
 				videoFrame->GetBytes(&frameBytes);
-				write(g_videoOutputFile, frameBytes, videoFrame->GetRowBytes() * videoFrame->GetHeight());
+                //write(g_videoOutputFile, frameBytes, videoFrame->GetRowBytes() * videoFrame->GetHeight());
 
-				if (rightEyeFrame)
-				{
-					rightEyeFrame->GetBytes(&frameBytes);
-					write(g_videoOutputFile, frameBytes, videoFrame->GetRowBytes() * videoFrame->GetHeight());
-				}
-			}
+
 		}
 
-		if (rightEyeFrame)
-			rightEyeFrame->Release();
-
-		g_frameCount++;
 	}
 
-	// Handle Audio Frame
-	if (audioFrame)
-	{
-		if (g_audioOutputFile != -1)
-		{
-			audioFrame->GetBytes(&audioFrameBytes);
-			write(g_audioOutputFile, audioFrameBytes, audioFrame->GetSampleFrameCount() * g_config.m_audioChannels * (g_config.m_audioSampleDepth / 8));
-		}
-	}
-
-	if (g_config.m_maxFrames > 0 && videoFrame && g_frameCount >= g_config.m_maxFrames)
-	{
-		g_do_exit = true;
-		pthread_cond_signal(&g_sleepCond);
-	}
 
 	return S_OK;
 }
 
 HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChangedEvents events, IDeckLinkDisplayMode *mode, BMDDetectedVideoInputFormatFlags formatFlags)
 {
-	// This only gets called if bmdVideoInputEnableFormatDetection was set
-	// when enabling video input
-	HRESULT	result;
-	char*	displayModeName = NULL;
-	BMDPixelFormat	pixelFormat = bmdFormat10BitYUV;
-
-	if (formatFlags & bmdDetectedVideoInputRGB444)
-		pixelFormat = bmdFormat10BitRGB;
-
-	mode->GetName((const char**)&displayModeName);
-	printf("Video format changed to %s %s\n", displayModeName, formatFlags & bmdDetectedVideoInputRGB444 ? "RGB" : "YUV");
-
-	if (displayModeName)
-		free(displayModeName);
-
-	if (g_deckLinkInput)
-	{
-		g_deckLinkInput->StopStreams();
-
-		result = g_deckLinkInput->EnableVideoInput(mode->GetDisplayMode(), pixelFormat, g_config.m_inputFlags);
-		if (result != S_OK)
-		{
-			fprintf(stderr, "Failed to switch video mode\n");
-			goto bail;
-		}
-
-		g_deckLinkInput->StartStreams();
-	}
-
-bail:
 	return S_OK;
 }
 
-static void sigfunc(int signum)
+void DeckLinkCaptureDelegate::Stop()
 {
-	if (signum == SIGINT || signum == SIGTERM)
-		g_do_exit = true;
+    decklinkInput->StopStreams();
+    decklinkInput->DisableVideoInput();
 
-	pthread_cond_signal(&g_sleepCond);
+    if (decklinkInput != NULL)
+    {
+        decklinkInput->Release();
+        decklinkInput = NULL;
+    }
+
+    if (decklink != NULL)
+    {
+        decklink->Release();
+        decklink = NULL;
+    }
 }
 
-int main(int argc, char *argv[])
+void stopCapture(jlong delegatePtr)
 {
-	HRESULT							result;
-	int								exitStatus = 1;
-	int								idx;
+    DeckLinkCaptureDelegate* delegate = (DeckLinkCaptureDelegate*) delegatePtr;
+    delegate->Stop();
+}
+
+jlong startCapture(int idx, int displayModeId)
+{
 
 	IDeckLinkIterator*				deckLinkIterator = NULL;
 	IDeckLink*						deckLink = NULL;
 
-	IDeckLinkAttributes*			deckLinkAttributes = NULL;
-	bool							formatDetectionSupported;
-
 	IDeckLinkDisplayModeIterator*	displayModeIterator = NULL;
 	IDeckLinkDisplayMode*			displayMode = NULL;
-	char*							displayModeName = NULL;
+    char*							displayModeName = NULL;
 	BMDDisplayModeSupport			displayModeSupported;
 
 	DeckLinkCaptureDelegate*		delegate = NULL;
 
-	pthread_mutex_init(&g_sleepMutex, NULL);
-	pthread_cond_init(&g_sleepCond, NULL);
+    HRESULT                                                 result;
 
-	signal(SIGINT, sigfunc);
-	signal(SIGTERM, sigfunc);
-	signal(SIGHUP, sigfunc);
+    IDeckLinkInput*	g_deckLinkInput = NULL;
 
-	// Process the command line arguments
-	if (!g_config.ParseArguments(argc, argv))
-	{
-		g_config.DisplayUsage(exitStatus);
-		goto bail;
-	}
+
 
 	// Get the DeckLink device
 	deckLinkIterator = CreateDeckLinkIteratorInstance();
@@ -237,7 +148,6 @@ int main(int argc, char *argv[])
 		goto bail;
 	}
 
-	idx = g_config.m_deckLinkIndex;
 
 	while ((result = deckLinkIterator->Next(&deckLink)) == S_OK)
 	{
@@ -250,56 +160,31 @@ int main(int argc, char *argv[])
 
 	if (result != S_OK || deckLink == NULL)
 	{
-		fprintf(stderr, "Unable to get DeckLink device %u\n", g_config.m_deckLinkIndex);
+        fprintf(stderr, "Unable to get DeckLink device %u\n", idx);
 		goto bail;
 	}
 
 	// Get the input (capture) interface of the DeckLink device
-	result = deckLink->QueryInterface(IID_IDeckLinkInput, (void**)&g_deckLinkInput);
+    result = deckLink->QueryInterface(IID_IDeckLinkInput, (void**)&g_deckLinkInput);
 	if (result != S_OK)
 		goto bail;
 
-	// Get the display mode
-	if (g_config.m_displayModeIndex == -1)
-	{
-		// Check the card supports format detection
-		result = deckLink->QueryInterface(IID_IDeckLinkAttributes, (void**)&deckLinkAttributes);
-		if (result == S_OK)
-		{
-			result = deckLinkAttributes->GetFlag(BMDDeckLinkSupportsInputFormatDetection, &formatDetectionSupported);
-			if (result != S_OK || !formatDetectionSupported)
-			{
-				fprintf(stderr, "Format detection is not supported on this device\n");
-				goto bail;
-			}
-		}
-
-		g_config.m_inputFlags |= bmdVideoInputEnableFormatDetection;
-
-		// Format detection still needs a valid mode to start with
-		idx = 0;
-	}
-	else
-	{
-		idx = g_config.m_displayModeIndex;
-	}
-
-	result = g_deckLinkInput->GetDisplayModeIterator(&displayModeIterator);
+    result = g_deckLinkInput->GetDisplayModeIterator(&displayModeIterator);
 	if (result != S_OK)
 		goto bail;
 
 	while ((result = displayModeIterator->Next(&displayMode)) == S_OK)
 	{
-		if (idx == 0)
+        if (displayModeId == 0)
 			break;
-		--idx;
+        --displayModeId;
 
 		displayMode->Release();
 	}
 
 	if (result != S_OK || displayMode == NULL)
 	{
-		fprintf(stderr, "Unable to get display mode %d\n", g_config.m_displayModeIndex);
+        fprintf(stderr, "Unable to get display mode %d\n", displayModeId);
 		goto bail;
 	}
 
@@ -308,11 +193,11 @@ int main(int argc, char *argv[])
 	if (result != S_OK)
 	{
 		displayModeName = (char *)malloc(32);
-		snprintf(displayModeName, 32, "[index %d]", g_config.m_displayModeIndex);
+        snprintf(displayModeName, 32, "[index %d]", displayModeId);
 	}
 
 	// Check display mode is supported with given options
-	result = g_deckLinkInput->DoesSupportVideoMode(displayMode->GetDisplayMode(), g_config.m_pixelFormat, bmdVideoInputFlagDefault, &displayModeSupported, NULL);
+    result = g_deckLinkInput->DoesSupportVideoMode(displayMode->GetDisplayMode(), bmdFormat8BitYUV, bmdVideoInputFlagDefault, &displayModeSupported, NULL);
 	if (result != S_OK)
 		goto bail;
 
@@ -322,81 +207,25 @@ int main(int argc, char *argv[])
 		goto bail;
 	}
 
-	if (g_config.m_inputFlags & bmdVideoInputDualStream3D)
-	{
-		if (!(displayMode->GetFlags() & bmdDisplayModeSupports3D))
-		{
-			fprintf(stderr, "The display mode %s is not supported with 3D\n", displayModeName);
-			goto bail;
-		}
-	}
-
-	// Print the selected configuration
-	g_config.DisplayConfiguration();
-
 	// Configure the capture callback
-	delegate = new DeckLinkCaptureDelegate();
+    delegate = new DeckLinkCaptureDelegate(deckLink, g_deckLinkInput);
 	g_deckLinkInput->SetCallback(delegate);
 
-	// Open output files
-	if (g_config.m_videoOutputFile != NULL)
-	{
-		g_videoOutputFile = open(g_config.m_videoOutputFile, O_WRONLY|O_CREAT|O_TRUNC, 0664);
-		if (g_videoOutputFile < 0)
-		{
-			fprintf(stderr, "Could not open video output file \"%s\"\n", g_config.m_videoOutputFile);
-			goto bail;
-		}
-	}
+    // Start capturing
+    result = g_deckLinkInput->EnableVideoInput(displayMode->GetDisplayMode(), bmdFormat8BitYUV, bmdVideoInputFlagDefault);
+    if (result != S_OK)
+    {
+        fprintf(stderr, "Failed to enable video input. Is another application using the card?\n");
+        goto bail;
+    }
 
-	if (g_config.m_audioOutputFile != NULL)
-	{
-		g_audioOutputFile = open(g_config.m_audioOutputFile, O_WRONLY|O_CREAT|O_TRUNC, 0664);
-		if (g_audioOutputFile < 0)
-		{
-			fprintf(stderr, "Could not open audio output file \"%s\"\n", g_config.m_audioOutputFile);
-			goto bail;
-		}
-	}
+    result = g_deckLinkInput->StartStreams();
+    if (result != S_OK)
+        goto bail;
 
-	// Block main thread until signal occurs
-	while (!g_do_exit)
-	{
-		// Start capturing
-		result = g_deckLinkInput->EnableVideoInput(displayMode->GetDisplayMode(), g_config.m_pixelFormat, g_config.m_inputFlags);
-		if (result != S_OK)
-		{
-			fprintf(stderr, "Failed to enable video input. Is another application using the card?\n");
-			goto bail;
-		}
 
-		result = g_deckLinkInput->EnableAudioInput(bmdAudioSampleRate48kHz, g_config.m_audioSampleDepth, g_config.m_audioChannels);
-		if (result != S_OK)
-			goto bail;
-
-		result = g_deckLinkInput->StartStreams();
-		if (result != S_OK)
-			goto bail;
-
-		// All Okay.
-		exitStatus = 0;
-
-		pthread_mutex_lock(&g_sleepMutex);
-		pthread_cond_wait(&g_sleepCond, &g_sleepMutex);
-		pthread_mutex_unlock(&g_sleepMutex);
-
-		fprintf(stderr, "Stopping Capture\n");
-		g_deckLinkInput->StopStreams();
-		g_deckLinkInput->DisableAudioInput();
-		g_deckLinkInput->DisableVideoInput();
-	}
 
 bail:
-	if (g_videoOutputFile != 0)
-		close(g_videoOutputFile);
-
-	if (g_audioOutputFile != 0)
-		close(g_audioOutputFile);
 
 	if (displayModeName != NULL)
 		free(displayModeName);
@@ -407,23 +236,9 @@ bail:
 	if (displayModeIterator != NULL)
 		displayModeIterator->Release();
 
-	if (delegate != NULL)
-		delegate->Release();
 
-	if (g_deckLinkInput != NULL)
-	{
-		g_deckLinkInput->Release();
-		g_deckLinkInput = NULL;
-	}
-
-	if (deckLinkAttributes != NULL)
-		deckLinkAttributes->Release();
-
-	if (deckLink != NULL)
-		deckLink->Release();
-
-	if (deckLinkIterator != NULL)
+    if (deckLinkIterator != NULL)
 		deckLinkIterator->Release();
 
-	return exitStatus;
+    return (jlong) delegate;
 }
