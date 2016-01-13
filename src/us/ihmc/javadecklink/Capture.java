@@ -1,6 +1,7 @@
 package us.ihmc.javadecklink;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 import us.ihmc.tools.nativelibraries.NativeLibraryLoader;
 
@@ -22,9 +23,10 @@ public class Capture
       
    }
    
-   private void receivedFrameFromNative(boolean valid, int width, int height, int rowBytes)
+   private void receivedFrameFromNative(boolean valid, int width, int height, int rowBytes, ByteBuffer dataBuffer)
    {
-      System.out.println("Received" + (!valid?"in":"") + "valid frame. " + height + "x" + width + ". Size: " + rowBytes * height);
+      System.out.println("Received" + (!valid?"in":"") + " valid frame. " + height + "x" + width + ". Size: " + rowBytes * height);
+      System.out.println(dataBuffer);
       
    }
    

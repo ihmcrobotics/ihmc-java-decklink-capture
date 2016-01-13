@@ -71,7 +71,7 @@ ULONG DeckLinkCaptureDelegate::Release(void)
 
 HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame, IDeckLinkAudioInputPacket* audioFrame)
 {
-    void*								frameBytes;
+    void* frameBytes;
 
 	// Handle Video Frame
 	if (videoFrame)
@@ -89,7 +89,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 		{
             printf("Frame received - No input signal detected\n");
 
-            env->CallVoidMethod(obj, methodID, false, 0, 0);
+            env->CallVoidMethod(obj, methodID, false, 0, 0, NULL);
 		}
 		else
         {
@@ -99,7 +99,12 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 
 				videoFrame->GetBytes(&frameBytes);
                 //write(g_videoOutputFile, frameBytes, videoFrame->GetRowBytes() * videoFrame->GetHeight());
-            env->CallVoidMethod(obj, methodID, true, videoFrame->GetWidth(), videoFrame->GetHeight(), videoFrame->GetRowBytes());
+
+            jobject frameBuffer = (jobject)env->NewDirectByteBuffer(frameBytes, (jlong)(videoFrame->GetRowBytes() * videoFrame->GetHeight()));
+
+            env->CallVoidMethod(obj, methodID, true, videoFrame->GetWidth(), videoFrame->GetHeight(), videoFrame->GetRowBytes(), frameBuffer);
+
+
 
 		}
 
@@ -171,7 +176,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
     jclass target = env->GetObjectClass(globalObj);
     JNIassert(env, target != NULL);
 
-    jmethodID methodID = env->GetMethodID(target, "receivedFrameFromNative", "(ZIII)V");
+    jmethodID methodID = env->GetMethodID(target, "receivedFrameFromNative", "(ZIIILjava/nio/ByteBuffer;)V");
     JNIassert(env, methodID != NULL);
 
 
