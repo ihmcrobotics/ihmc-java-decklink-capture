@@ -76,7 +76,7 @@ public class Capture
 
    public static void main(String[] args) throws IOException, InterruptedException
    {
-      Capture capture = new Capture(new MJPEGEncoder());
+      final Capture capture = new Capture(new MJPEGEncoder());
 
       capture.startCapture(1, 9);
 
