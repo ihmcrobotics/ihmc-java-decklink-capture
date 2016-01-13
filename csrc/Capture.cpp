@@ -214,6 +214,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
 	if (result != S_OK)
 		goto bail;
 
+    displayModeId = 0;
 	while ((result = displayModeIterator->Next(&displayMode)) == S_OK)
 	{
         if (displayModeId == 0)
@@ -253,7 +254,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
 	g_deckLinkInput->SetCallback(delegate);
 
     // Start capturing
-    result = g_deckLinkInput->EnableVideoInput(bmdModeUnknown, bmdFormat8BitYUV, bmdVideoInputFlagDefault | bmdVideoInputEnableFormatDetection);
+    result = g_deckLinkInput->EnableVideoInput(displayMode->GetDisplayMode(), bmdFormat8BitYUV, bmdVideoInputFlagDefault | bmdVideoInputEnableFormatDetection);
     if (result != S_OK)
     {
         fprintf(stderr, "Failed to enable video input. Is another application using the card?\n");
