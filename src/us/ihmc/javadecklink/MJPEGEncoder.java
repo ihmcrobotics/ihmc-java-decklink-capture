@@ -41,12 +41,13 @@ public class MJPEGEncoder implements CaptureHandler
       YUVPicture picture = new YUVPicture(YUVSubsamplingType.YUV422, width, height, width, width/2, width/2, Y, U, V);
       
       
-      for(int i = 0; i < height * (rowBytes/4); i++)
+      while(data.hasRemaining())
       {
          U.put(data.get());
          Y.put(data.get());
          V.put(data.get());
          Y.put(data.get());
+         System.out.println(data);
       }
       
       
