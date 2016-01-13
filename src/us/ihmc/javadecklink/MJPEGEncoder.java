@@ -47,9 +47,9 @@ public class MJPEGEncoder implements CaptureHandler
          Y.put(data.get());
          V.put(data.get());
          Y.put(data.get());
-         System.out.println(data);
       }
       
+      System.out.println(data);
       
       try
       {
