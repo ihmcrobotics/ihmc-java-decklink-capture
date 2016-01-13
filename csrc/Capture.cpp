@@ -116,6 +116,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 
 HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChangedEvents events, IDeckLinkDisplayMode *mode, BMDDetectedVideoInputFormatFlags formatFlags)
 {
+    std::cout << "Detected new mode " << mode->GetWidth() << "x" << mode->GetHeight() << std::endl;
 	return S_OK;
 }
 
@@ -252,7 +253,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
 	g_deckLinkInput->SetCallback(delegate);
 
     // Start capturing
-    result = g_deckLinkInput->EnableVideoInput(displayMode->GetDisplayMode(), bmdFormat8BitYUV, bmdVideoInputFlagDefault);
+    result = g_deckLinkInput->EnableVideoInput(bmdModeUnknown, bmdFormat8BitYUV, bmdVideoInputFlagDefault | bmdVideoInputEnableFormatDetection);
     if (result != S_OK)
     {
         fprintf(stderr, "Failed to enable video input. Is another application using the card?\n");

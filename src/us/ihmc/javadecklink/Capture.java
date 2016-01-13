@@ -25,7 +25,7 @@ public class Capture
    
    private void receivedFrameFromNative(boolean valid, int width, int height, int rowBytes, ByteBuffer dataBuffer)
    {
-      System.out.println("Received" + (!valid?"in":"") + " valid frame. " + height + "x" + width + ". Size: " + rowBytes * height);
+      System.out.println("Received" + (!valid?"in":"") + " valid frame. " + width + "x" + height + ". Size: " + rowBytes * height);
       System.out.println(dataBuffer);
       
    }
