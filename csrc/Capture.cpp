@@ -120,7 +120,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
     // when enabling video input
     HRESULT	result;
     char*	displayModeName = NULL;
-    BMDPixelFormat	pixelFormat = bmdFormat10BitYUV;
+    BMDPixelFormat	pixelFormat = bmdFormat8BitYUV;
 
     JNIEnv* env = getEnv(vm);
     if (formatFlags & bmdDetectedVideoInputRGB444)
@@ -276,7 +276,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
 	}
 
 	// Check display mode is supported with given options
-    result = g_deckLinkInput->DoesSupportVideoMode(displayMode->GetDisplayMode(), bmdFormat10BitYUV, bmdVideoInputFlagDefault, &displayModeSupported, NULL);
+    result = g_deckLinkInput->DoesSupportVideoMode(displayMode->GetDisplayMode(), bmdFormat8BitYUV, bmdVideoInputFlagDefault, &displayModeSupported, NULL);
 	if (result != S_OK)
 		goto bail;
 
@@ -291,7 +291,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
 	g_deckLinkInput->SetCallback(delegate);
 
     // Start capturing
-    result = g_deckLinkInput->EnableVideoInput(displayMode->GetDisplayMode(), bmdFormat10BitYUV, bmdVideoInputFlagDefault | bmdVideoInputEnableFormatDetection);
+    result = g_deckLinkInput->EnableVideoInput(displayMode->GetDisplayMode(), bmdFormat8BitYUV, bmdVideoInputFlagDefault | bmdVideoInputEnableFormatDetection);
     if (result != S_OK)
     {
         fprintf(stderr, "Failed to enable video input. Is another application using the card?\n");

@@ -18,15 +18,26 @@ public class Capture
    
    private long ptr = 0;
    
-   public Capture()
+   private final CaptureHandler handler;
+   
+   public Capture(CaptureHandler handler)
    {
-      
+      this.handler = handler; 
    }
    
    private void receivedFrameFromNative(boolean valid, int width, int height, int rowBytes, ByteBuffer dataBuffer)
    {
       System.out.println("Received" + (!valid?"in":"") + " valid frame. " + width + "x" + height + ". Size: " + rowBytes * height);
       System.out.println(dataBuffer);
+      
+      if(valid)
+      {
+         handler.receivedFrame(width, height, rowBytes, dataBuffer);
+      }
+      else
+      {
+         handler.receivedInvalidFrame();
+      }
       
    }
    
@@ -55,7 +66,7 @@ public class Capture
    
    public static void main(String[] args) throws IOException, InterruptedException
    {
-      Capture capture = new Capture();
+      Capture capture = new Capture(new MJPEGEncoder());
       
       capture.startCapture(1, 9);
       
