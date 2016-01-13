@@ -116,6 +116,43 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 
 HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChangedEvents events, IDeckLinkDisplayMode *mode, BMDDetectedVideoInputFormatFlags formatFlags)
 {
+    // This only gets called if bmdVideoInputEnableFormatDetection was set
+    // when enabling video input
+    HRESULT	result;
+    char*	displayModeName = NULL;
+    BMDPixelFormat	pixelFormat = bmdFormat10BitYUV;
+
+    JNIEnv* env = getEnv(vm);
+    if (formatFlags & bmdDetectedVideoInputRGB444)
+    {
+        throwRuntimeException(env, "Unsupported input format: RGB444");
+        goto bail;
+    }
+
+    mode->GetName((const char**)&displayModeName);
+    printf("Video format changed to %s %s\n", displayModeName, formatFlags & bmdDetectedVideoInputRGB444 ? "RGB" : "YUV");
+
+    if (displayModeName)
+        free(displayModeName);
+
+    if (decklinkInput)
+    {
+        decklinkInput->StopStreams();
+
+        result = decklinkInput->EnableVideoInput(mode->GetDisplayMode(), pixelFormat, bmdVideoInputFlagDefault | bmdVideoInputEnableFormatDetection);
+        if (result != S_OK)
+        {
+            throwRuntimeException(env, "Failed to switch to new video mode");
+            goto bail;
+        }
+
+        decklinkInput->StartStreams();
+    }
+
+bail:
+    return S_OK;
+
+
     std::cout << "Detected new mode " << mode->GetWidth() << "x" << mode->GetHeight() << std::endl;
 	return S_OK;
 }
@@ -239,7 +276,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
 	}
 
 	// Check display mode is supported with given options
-    result = g_deckLinkInput->DoesSupportVideoMode(displayMode->GetDisplayMode(), bmdFormat8BitYUV, bmdVideoInputFlagDefault, &displayModeSupported, NULL);
+    result = g_deckLinkInput->DoesSupportVideoMode(displayMode->GetDisplayMode(), bmdFormat10BitYUV, bmdVideoInputFlagDefault, &displayModeSupported, NULL);
 	if (result != S_OK)
 		goto bail;
 
@@ -254,7 +291,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
 	g_deckLinkInput->SetCallback(delegate);
 
     // Start capturing
-    result = g_deckLinkInput->EnableVideoInput(displayMode->GetDisplayMode(), bmdFormat8BitYUV, bmdVideoInputFlagDefault | bmdVideoInputEnableFormatDetection);
+    result = g_deckLinkInput->EnableVideoInput(displayMode->GetDisplayMode(), bmdFormat10BitYUV, bmdVideoInputFlagDefault | bmdVideoInputEnableFormatDetection);
     if (result != S_OK)
     {
         fprintf(stderr, "Failed to enable video input. Is another application using the card?\n");
