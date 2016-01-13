@@ -1,9 +1,12 @@
 apply plugin: 'java'
 apply plugin: 'maven-publish'
+apply plugin: 'application'
 
 sourceCompatibility = 1.7
 targetCompatibility = 1.7
 version = '0.1'
+
+mainClassName = "us.ihmc.javadecklink.Capture"
 
 repositories {
         maven {
@@ -17,6 +20,11 @@ repositories {
         url "https://bengal.ihmc.us/nexus/content/repositories/central/"
     }
 }
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '2.8'
+}
+
 
 
 sourceSets {
