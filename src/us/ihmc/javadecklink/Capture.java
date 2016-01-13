@@ -55,7 +55,7 @@ public class Capture
    {
       Capture capture = new Capture();
       
-      capture.startCapture(0, 14);
+      capture.startCapture(1, 9);
       
       while(true)
       {
