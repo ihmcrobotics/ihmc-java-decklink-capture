@@ -61,7 +61,7 @@ public class Capture
 
    public void stopCapture() throws IOException
    {
-      if (ptr != 0)
+      if (ptr == 0)
       {
          throw new IOException("Capture not started");
       }
@@ -80,24 +80,7 @@ public class Capture
 
       capture.startCapture(1, 9);
 
-      Runtime.getRuntime().addShutdownHook(new Thread()
-      {
-         @Override
-         public void run()
-         {
-            try
-            {
-               capture.stopCapture();
-            }
-            catch (IOException e)
-            {
-               e.printStackTrace();
-            }
-         }
-      });
-      while (true)
-      {
-         Thread.sleep(1000);
-      }
+      Thread.sleep(5000);
+      capture.stopCapture();
    }
 }

@@ -48,8 +48,9 @@ public class MJPEGEncoder implements CaptureHandler
          Y.put(data.get());
       }
       YUVPicture picture = new YUVPicture(YUVSubsamplingType.YUV422, width, height, width, width/2, width/2, Y, U, V);
+      System.out.println("Converting data took " + (System.nanoTime() - startTime) + "ns");
       
-      
+      startTime = System.nanoTime();
       try
       {
          builder.encodeFrame(picture);
