@@ -7,4 +7,6 @@ public interface CaptureHandler
    public void receivedFrame(int width, int height, int rowBytes, ByteBuffer data);
    
    public void receivedInvalidFrame();
+   
+   public void stop();
 }

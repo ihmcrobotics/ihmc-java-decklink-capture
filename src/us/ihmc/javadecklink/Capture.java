@@ -11,66 +11,91 @@ public class Capture
    {
       NativeLibraryLoader.loadLibrary("us.ihmc.javadecklink.lib", "JavaDecklink");
    }
-   
+
    private native long startCaptureNative(int decklink, int mode);
+
    private native void stopCaptureNative(long ptr);
-   
-   
+
    private long ptr = 0;
-   
+
    private final CaptureHandler handler;
    
+   private boolean alive = true;
+
    public Capture(CaptureHandler handler)
    {
-      this.handler = handler; 
+      this.handler = handler;
    }
-   
-   private void receivedFrameFromNative(boolean valid, int width, int height, int rowBytes, ByteBuffer dataBuffer)
+
+   private synchronized void receivedFrameFromNative(boolean valid, int width, int height, int rowBytes, ByteBuffer dataBuffer)
    {
-      System.out.println("Received" + (!valid?"in":"") + " valid frame. " + width + "x" + height + ". Size: " + rowBytes * height);
-      System.out.println(dataBuffer);
-      
-      if(valid)
+      if(alive)
       {
-         handler.receivedFrame(width, height, rowBytes, dataBuffer);
+         if (valid)
+         {
+            handler.receivedFrame(width, height, rowBytes, dataBuffer);
+         }
+         else
+         {
+            handler.receivedInvalidFrame();
+         }
       }
-      else
-      {
-         handler.receivedInvalidFrame();
-      }
-      
    }
-   
-   public void startCapture(int decklink, int mode) throws IOException
+
+   public synchronized void startCapture(int decklink, int mode) throws IOException
    {
-      if(ptr != 0)
+      if(!alive)
+      {
+         throw new RuntimeException("This Capture interface has been stopped");
+      }
+      if (ptr != 0)
       {
          throw new IOException("Capture already started");
       }
       ptr = startCaptureNative(decklink, mode);
-      if(ptr == 0)
+      if (ptr == 0)
       {
          throw new IOException("Cannot open capture card");
       }
    }
-   
+
    public void stopCapture() throws IOException
    {
-      if(ptr != 0)
+      if (ptr != 0)
       {
          throw new IOException("Capture not started");
       }
-      
+
       stopCaptureNative(ptr);
+      synchronized(this)
+      {
+         alive = false;
+         handler.stop();
+      }
    }
-   
+
    public static void main(String[] args) throws IOException, InterruptedException
    {
       Capture capture = new Capture(new MJPEGEncoder());
-      
+
       capture.startCapture(1, 9);
-      
-      while(true)
+
+      Runtime.getRuntime().addShutdownHook(new Thread()
+      {
+         @Override
+         public void run()
+         {
+            try
+            {
+               capture.stopCapture();
+            }
+            catch (IOException e)
+            {
+               e.printStackTrace();
+            }
+         }
+      });
+      while (true)
       {
          Thread.sleep(1000);
       }

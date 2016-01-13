@@ -34,12 +34,11 @@ public class MJPEGEncoder implements CaptureHandler
          }
       }
       
+      long startTime = System.nanoTime();
+      
       ByteBuffer Y = ByteBuffer.allocateDirect(width * height);
       ByteBuffer U = ByteBuffer.allocateDirect(width/2 * height);
       ByteBuffer V = ByteBuffer.allocateDirect(width/2 * height);
-      
-      YUVPicture picture = new YUVPicture(YUVSubsamplingType.YUV422, width, height, width, width/2, width/2, Y, U, V);
-      
       
       while(data.hasRemaining())
       {
@@ -48,8 +47,8 @@ public class MJPEGEncoder implements CaptureHandler
          V.put(data.get());
          Y.put(data.get());
       }
+      YUVPicture picture = new YUVPicture(YUVSubsamplingType.YUV422, width, height, width, width/2, width/2, Y, U, V);
       
-      System.out.println(data);
       
       try
       {
@@ -61,6 +60,7 @@ public class MJPEGEncoder implements CaptureHandler
       }
       
       
+      System.out.println("Compressed 1 frame in " + (System.nanoTime() - startTime) + "ns");
    }
 
    @Override
@@ -68,6 +68,19 @@ public class MJPEGEncoder implements CaptureHandler
    {
       // TODO Auto-generated method stub
       
+   }
+   
+   public void stop()
+   {
+      System.out.println("Stopping capture");
+      try
+      {
+         builder.close();
+      }
+      catch (IOException e)
+      {
+         e.printStackTrace();
+      }
    }
 
 }
