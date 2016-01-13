@@ -29,11 +29,12 @@
 #define __CAPTURE_H__
 
 #include "DeckLinkAPI.h"
+#include <jni.h>
 
 class DeckLinkCaptureDelegate : public IDeckLinkInputCallback
 {
 public:
-    DeckLinkCaptureDelegate(IDeckLink*, IDeckLinkInput*decklinkInput);
+    DeckLinkCaptureDelegate(IDeckLink*, IDeckLinkInput*decklinkInput, JavaVM* vm, jobject obj, jmethodID methodID);
 
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, LPVOID *ppv) { return E_NOINTERFACE; }
 	virtual ULONG STDMETHODCALLTYPE AddRef(void);
@@ -48,6 +49,9 @@ private:
 
     IDeckLink* decklink;
     IDeckLinkInput* decklinkInput;
+    JavaVM* vm;
+    jobject obj;
+    jmethodID methodID;
 };
 
 #endif

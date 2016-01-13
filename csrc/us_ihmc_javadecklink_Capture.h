@@ -13,7 +13,7 @@ extern "C" {
  * Signature: (II)J
  */
 JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
-  (JNIEnv *, jclass, jint, jint);
+  (JNIEnv *, jobject, jint, jint);
 
 /*
  * Class:     us_ihmc_javadecklink_Capture
@@ -21,7 +21,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
  * Signature: (J)V
  */
 JNIEXPORT void JNICALL Java_us_ihmc_javadecklink_Capture_stopCaptureNative
-  (JNIEnv *, jclass, jlong);
+  (JNIEnv *, jobject, jlong);
 
 #ifdef __cplusplus
 }

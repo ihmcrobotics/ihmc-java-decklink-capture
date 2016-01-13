@@ -11,14 +11,20 @@ public class Capture
       NativeLibraryLoader.loadLibrary("us.ihmc.javadecklink.lib", "JavaDecklink");
    }
    
-   private static native long startCaptureNative(int decklink, int mode);
-   private static native void stopCaptureNative(long ptr);
+   private native long startCaptureNative(int decklink, int mode);
+   private native void stopCaptureNative(long ptr);
    
    
    private long ptr = 0;
    
    public Capture()
    {
+      
+   }
+   
+   private void receivedFrameFromNative(boolean valid, int width, int height, int rowBytes)
+   {
+      System.out.println("Received" + (!valid?"in":"") + "valid frame. " + height + "x" + width + ". Size: " + rowBytes * height);
       
    }
    

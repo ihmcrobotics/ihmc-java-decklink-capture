@@ -33,15 +33,23 @@
 #include <fcntl.h>
 #include <csignal>
 #include <jni.h>
+#include <string>
+
+
 
 #include "DeckLinkAPI.h"
 #include "Capture.h"
+#include "Util.hpp"
 #include "us_ihmc_javadecklink_Capture.h"
 
 
-
-
-DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(IDeckLink* decklink, IDeckLinkInput* decklinkInput) : m_refCount(1), decklink(decklink), decklinkInput(decklinkInput)
+DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(IDeckLink* decklink, IDeckLinkInput* decklinkInput, JavaVM* vm, jobject obj, jmethodID methodID) :
+    m_refCount(1),
+    decklink(decklink),
+    decklinkInput(decklinkInput),
+    vm(vm),
+    obj(obj),
+    methodID(methodID)
 {
 }
 
@@ -69,10 +77,19 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 	if (videoFrame)
     {
 
+        JNIEnv* env = getEnv(vm);
+        if(env == 0)
+        {
+            // Cannot throw a runtime exception because we don't have an env
+            std::cerr << "Cannot load env" << std::endl;
+            return S_OK;
+        }
 
 		if (videoFrame->GetFlags() & bmdFrameHasNoInputSource)
 		{
             printf("Frame received - No input signal detected\n");
+
+            env->CallVoidMethod(obj, methodID, false, 0, 0);
 		}
 		else
         {
@@ -82,7 +99,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 
 				videoFrame->GetBytes(&frameBytes);
                 //write(g_videoOutputFile, frameBytes, videoFrame->GetRowBytes() * videoFrame->GetHeight());
-
+            env->CallVoidMethod(obj, methodID, true, videoFrame->GetWidth(), videoFrame->GetHeight(), videoFrame->GetRowBytes());
 
 		}
 
@@ -113,18 +130,24 @@ void DeckLinkCaptureDelegate::Stop()
         decklink->Release();
         decklink = NULL;
     }
+
+
+    JNIEnv* env = getEnv(vm);
+    env->DeleteGlobalRef(obj);
+    releaseEnv(vm);
+
+
 }
 
 JNIEXPORT void JNICALL Java_us_ihmc_javadecklink_Capture_stopCaptureNative
-  (JNIEnv *, jclass, jlong delegatePtr)
+  (JNIEnv *, jobject, jlong delegatePtr)
 {
     DeckLinkCaptureDelegate* delegate = (DeckLinkCaptureDelegate*) delegatePtr;
     delegate->Stop();
 }
 
-
 JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
-  (JNIEnv *, jclass, jint idx, jint displayModeId)
+  (JNIEnv *env, jobject obj, jint idx, jint displayModeId)
 {
 
 	IDeckLinkIterator*				deckLinkIterator = NULL;
@@ -141,6 +164,15 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
 
     IDeckLinkInput*	g_deckLinkInput = NULL;
 
+    JavaVM* vm;
+    JNIassert(env, env->GetJavaVM(&vm) == 0);
+
+    jobject globalObj = env->NewGlobalRef(obj);
+    jclass target = env->GetObjectClass(globalObj);
+    JNIassert(env, target != NULL);
+
+    jmethodID methodID = env->GetMethodID(target, "receivedFrameFromNative", "(ZII)V");
+    JNIassert(env, methodID != NULL);
 
 
 	// Get the DeckLink device
@@ -211,7 +243,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
 	}
 
 	// Configure the capture callback
-    delegate = new DeckLinkCaptureDelegate(deckLink, g_deckLinkInput);
+    delegate = new DeckLinkCaptureDelegate(deckLink, g_deckLinkInput, vm, globalObj, methodID);
 	g_deckLinkInput->SetCallback(delegate);
 
     // Start capturing
