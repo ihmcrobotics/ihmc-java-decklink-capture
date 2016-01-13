@@ -171,7 +171,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
     jclass target = env->GetObjectClass(globalObj);
     JNIassert(env, target != NULL);
 
-    jmethodID methodID = env->GetMethodID(target, "receivedFrameFromNative", "(ZII)V");
+    jmethodID methodID = env->GetMethodID(target, "receivedFrameFromNative", "(ZIII)V");
     JNIassert(env, methodID != NULL);
 
 
