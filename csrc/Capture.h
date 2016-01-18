@@ -31,6 +31,18 @@
 #include "DeckLinkAPI.h"
 #include <jni.h>
 
+extern "C" {
+#include "libavcodec/avcodec.h"
+#include "libavutil/channel_layout.h"
+#include "libavutil/common.h"
+#include "libavutil/imgutils.h"
+#include "libavutil/mathematics.h"
+#include "libavutil/samplefmt.h"
+#include "libswscale/swscale.h"
+}
+
+static int sws_flags = SWS_BICUBIC;
+
 class DeckLinkCaptureDelegate : public IDeckLinkInputCallback
 {
 public:
@@ -52,6 +64,19 @@ private:
     JavaVM* vm;
     jobject obj;
     jmethodID methodID;
+
+    AVCodec *codec;
+    AVCodecContext *c= NULL;
+    FILE *f;
+    AVPacket pkt;
+
+    AVFrame *pictureUYVY;
+    AVFrame *pictureYUV420;
+
+    struct SwsContext *img_convert_ctx;
+
+
+    int i;
 };
 
 #endif

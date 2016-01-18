@@ -43,6 +43,7 @@
 #include "us_ihmc_javadecklink_Capture.h"
 
 
+
 DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(IDeckLink* decklink, IDeckLinkInput* decklinkInput, JavaVM* vm, jobject obj, jmethodID methodID) :
     m_refCount(1),
     decklink(decklink),
@@ -51,6 +52,13 @@ DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(IDeckLink* decklink, IDeckLinkI
     obj(obj),
     methodID(methodID)
 {
+    avcodec_register_all();
+    codec = avcodec_find_encoder(AV_CODEC_ID_MJPEG);
+    c = avcodec_alloc_context3(codec);
+    if (!codec) {
+        fprintf(stderr, "codec not found\n");
+        exit(1);
+    }
 }
 
 ULONG DeckLinkCaptureDelegate::AddRef(void)
@@ -69,6 +77,37 @@ ULONG DeckLinkCaptureDelegate::Release(void)
 	return newRefValue;
 }
 
+/*
+static void video_encode_example(const char *filename)
+{
+    int i, ret, x, y, got_output;
+    uint8_t endcode[] = { 0, 0, 1, 0xb7 };
+    printf("Video encoding\n");
+
+
+    /* encode 1 second of video *
+    for(i=0;i<25;i++) {
+
+    }
+    /* get the delayed frames *
+    for (got_output = 1; got_output; i++) {
+        fflush(stdout);
+        ret = avcodec_encode_video2(c, &pkt, NULL, &got_output);
+        if (ret < 0) {
+            fprintf(stderr, "error encoding frame\n");
+            exit(1);
+        }
+        if (got_output) {
+            printf("encoding frame %3d (size=%5d)\n", i, pkt.size);
+            fwrite(pkt.data, 1, pkt.size, f);
+            av_packet_unref(&pkt);
+        }
+    }
+    /* add sequence end code to have a real mpeg file *
+    fwrite(endcode, 1, sizeof(endcode), f);
+    printf("\n");
+}
+*/
 HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame, IDeckLinkAudioInputPacket* audioFrame)
 {
     void* frameBytes;
@@ -97,15 +136,37 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
             printf("Frame received - Size: %li bytes\n",
 				videoFrame->GetRowBytes() * videoFrame->GetHeight());
 
+
 				videoFrame->GetBytes(&frameBytes);
                 //write(g_videoOutputFile, frameBytes, videoFrame->GetRowBytes() * videoFrame->GetHeight());
 
-            jobject frameBuffer = (jobject)env->NewDirectByteBuffer(frameBytes, (jlong)(videoFrame->GetRowBytes() * videoFrame->GetHeight()));
 
-            env->CallVoidMethod(obj, methodID, true, videoFrame->GetWidth(), videoFrame->GetHeight(), videoFrame->GetRowBytes(), frameBuffer);
+                av_init_packet(&pkt);
+                pkt.data = NULL;    // packet data will be allocated by the encoder
+                pkt.size = 0;
 
 
 
+                pictureUYVY->pts = i;
+                pictureYUV420->pts = i;
+
+                avpicture_fill((AVPicture*)pictureUYVY, (uint8_t*) frameBytes, AV_PIX_FMT_UYVY422, pictureUYVY->width, pictureUYVY->height);
+                sws_scale(img_convert_ctx, pictureUYVY->data, pictureUYVY->linesize, 0, c->height, pictureYUV420->data, pictureYUV420->linesize);
+
+                /* encode the image */
+                int got_output;
+                int ret = avcodec_encode_video2(c, &pkt, pictureYUV420, &got_output);
+                if (ret < 0) {
+                    fprintf(stderr, "error encoding frame\n");
+                    exit(1);
+                }
+                if (got_output) {
+                    printf("encoding frame %3d (size=%5d)\n", i, pkt.size);
+                    fwrite(pkt.data, 1, pkt.size, f);
+                    av_packet_unref(&pkt);
+                }
+
+            ++i;
 		}
 
 	}
@@ -132,12 +193,67 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
     mode->GetName((const char**)&displayModeName);
     printf("Video format changed to %s %s\n", displayModeName, formatFlags & bmdDetectedVideoInputRGB444 ? "RGB" : "YUV");
 
+
+
     if (displayModeName)
         free(displayModeName);
 
     if (decklinkInput)
     {
         decklinkInput->StopStreams();
+
+
+        /* put sample parameters */
+        c->qcompress = 0.80;
+        /* resolution must be a multiple of two */
+        c->width = mode->GetWidth();
+        c->height = mode->GetHeight();
+        /* frames per second */
+
+        BMDTimeValue numerator;
+        BMDTimeScale denumerator;
+
+        mode->GetFrameRate(&numerator, &denumerator);
+
+
+        c->time_base= (AVRational){(int) numerator, (int) denumerator};
+        c->pix_fmt = AV_PIX_FMT_YUV420P;
+        /* open it */
+        if (avcodec_open2(c, codec, NULL) < 0) {
+            throwRuntimeException(env, "Could not open codec");
+            goto bail;
+        }
+        f = fopen("test.mp4", "wb");
+        if (!f) {
+            throwRuntimeException(env, "Could not open file");
+            goto bail;
+        }
+
+        pictureYUV420 = av_frame_alloc();
+       int ret = av_image_alloc(pictureYUV420->data, pictureYUV420->linesize, c->width, c->height,
+                             c->pix_fmt, 32);
+        if (ret < 0) {
+            throwRuntimeException(env, "could not alloc raw picture buffer\n");
+            goto bail;
+        }
+        pictureYUV420->format = c->pix_fmt;
+        pictureYUV420->width  = c->width;
+        pictureYUV420->height = c->height;
+
+
+        pictureUYVY = av_frame_alloc();
+        pictureYUV420->width = c->width;
+        pictureYUV420->height = c->height;
+        pictureYUV420->format = AV_PIX_FMT_UYVY422;
+
+        img_convert_ctx = sws_getContext(c->width, c->height,
+        PIX_FMT_YUV420P,
+        c->width, c->height,
+        c->pix_fmt,
+        sws_flags, NULL, NULL, NULL);
+
+
+
 
         result = decklinkInput->EnableVideoInput(mode->GetDisplayMode(), pixelFormat, bmdVideoInputFlagDefault | bmdVideoInputEnableFormatDetection);
         if (result != S_OK)
@@ -150,9 +266,6 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
     }
 
 bail:
-    return S_OK;
-
-
     std::cout << "Detected new mode " << mode->GetWidth() << "x" << mode->GetHeight() << std::endl;
 	return S_OK;
 }
@@ -178,6 +291,13 @@ void DeckLinkCaptureDelegate::Stop()
     JNIEnv* env = getEnv(vm);
     env->DeleteGlobalRef(obj);
     releaseEnv(vm);
+
+    fclose(f);
+    avcodec_close(c);
+    av_free(c);
+    av_freep(&pictureYUV420->data[0]);
+    av_frame_free(&pictureYUV420);
+
 
 
 }
