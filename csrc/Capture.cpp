@@ -243,12 +243,12 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
 
 
         pictureUYVY = avcodec_alloc_frame();
-        pictureYUV420->width = c->width;
-        pictureYUV420->height = c->height;
-        pictureYUV420->format = AV_PIX_FMT_UYVY422;
+        pictureUYVY->width = c->width;
+        pictureUYVY->height = c->height;
+        pictureUYVY->format = AV_PIX_FMT_UYVY422;
 
         img_convert_ctx = sws_getContext(c->width, c->height,
-        PIX_FMT_YUV420P,
+        AV_PIX_FMT_UYVY422,
         c->width, c->height,
         c->pix_fmt,
         sws_flags, NULL, NULL, NULL);
