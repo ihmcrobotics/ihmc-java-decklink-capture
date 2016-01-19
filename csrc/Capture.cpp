@@ -130,6 +130,10 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
                 int64_t pts;
                 pts = frameTime / video_st->time_base.num;
 
+                videoFrame->GetStreamTime(&frameTime, &frameDuration, 1000000);
+                printf("Got frame at %ld\n", frameTime);
+
+
                 if (initial_video_pts == AV_NOPTS_VALUE) {
                     initial_video_pts = pts;
                 }
