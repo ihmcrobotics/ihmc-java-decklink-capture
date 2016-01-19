@@ -44,15 +44,14 @@
 
 
 
-DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(IDeckLink* decklink, IDeckLinkInput* decklinkInput, JavaVM* vm, jobject obj, jmethodID methodID) :
+DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(IDeckLink* decklink, IDeckLinkInput* decklinkInput, JavaVM* vm) :
     m_refCount(1),
     decklink(decklink),
     decklinkInput(decklinkInput),
     vm(vm),
-    obj(obj),
-    methodID(methodID),
     initial_video_pts(AV_NOPTS_VALUE)
 {
+    av_register_all();
     avcodec_register_all();
 
 
@@ -301,8 +300,6 @@ void DeckLinkCaptureDelegate::Stop()
     }
 
 
-    JNIEnv* env = getEnv(vm);
-    env->DeleteGlobalRef(obj);
     releaseEnv(vm);
 
 
@@ -345,13 +342,6 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
 
     JavaVM* vm;
     JNIassert(env, env->GetJavaVM(&vm) == 0);
-
-    jobject globalObj = env->NewGlobalRef(obj);
-    jclass target = env->GetObjectClass(globalObj);
-    JNIassert(env, target != NULL);
-
-    jmethodID methodID = env->GetMethodID(target, "receivedFrameFromNative", "(ZIIILjava/nio/ByteBuffer;)V");
-    JNIassert(env, methodID != NULL);
 
 
 	// Get the DeckLink device
@@ -423,7 +413,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
 	}
 
 	// Configure the capture callback
-    delegate = new DeckLinkCaptureDelegate(deckLink, g_deckLinkInput, vm, globalObj, methodID);
+    delegate = new DeckLinkCaptureDelegate(deckLink, g_deckLinkInput, vm);
 	g_deckLinkInput->SetCallback(delegate);
 
     // Start capturing

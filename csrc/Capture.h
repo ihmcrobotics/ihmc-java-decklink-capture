@@ -44,7 +44,7 @@ static int sws_flags = SWS_BICUBIC;
 class DeckLinkCaptureDelegate : public IDeckLinkInputCallback
 {
 public:
-    DeckLinkCaptureDelegate(IDeckLink*, IDeckLinkInput*decklinkInput, JavaVM* vm, jobject obj, jmethodID methodID);
+    DeckLinkCaptureDelegate(IDeckLink*, IDeckLinkInput*decklinkInput, JavaVM* vm);
 
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, LPVOID *ppv) { return E_NOINTERFACE; }
 	virtual ULONG STDMETHODCALLTYPE AddRef(void);
@@ -60,8 +60,6 @@ private:
     IDeckLink* decklink;
     IDeckLinkInput* decklinkInput;
     JavaVM* vm;
-    jobject obj;
-    jmethodID methodID;
 
     AVCodec *codec;
     AVCodecContext *c= NULL;
