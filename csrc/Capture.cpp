@@ -229,7 +229,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
             goto bail;
         }
 
-        pictureYUV420 = av_frame_alloc();
+        pictureYUV420 = avcodec_alloc_frame();
        int ret = av_image_alloc(pictureYUV420->data, pictureYUV420->linesize, c->width, c->height,
                              c->pix_fmt, 32);
         if (ret < 0) {
@@ -241,7 +241,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
         pictureYUV420->height = c->height;
 
 
-        pictureUYVY = av_frame_alloc();
+        pictureUYVY = avcodec_alloc_frame();
         pictureYUV420->width = c->width;
         pictureYUV420->height = c->height;
         pictureYUV420->format = AV_PIX_FMT_UYVY422;
@@ -296,7 +296,7 @@ void DeckLinkCaptureDelegate::Stop()
     avcodec_close(c);
     av_free(c);
     av_freep(&pictureYUV420->data[0]);
-    av_frame_free(&pictureYUV420);
+    avcodec_free_frame(&pictureYUV420);
 
 
 
