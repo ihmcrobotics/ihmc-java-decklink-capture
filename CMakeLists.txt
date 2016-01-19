@@ -18,6 +18,8 @@ ENDIF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(AVLIB REQUIRED libswscale libavcodec)
 
 find_package(JNI REQUIRED)
 
