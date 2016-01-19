@@ -36,6 +36,7 @@ extern "C" {
 #include "libavutil/common.h"
 #include "libavutil/imgutils.h"
 #include "libswscale/swscale.h"
+#include "libavformat/avformat.h"
 }
 
 static int sws_flags = SWS_BICUBIC;
@@ -64,16 +65,19 @@ private:
 
     AVCodec *codec;
     AVCodecContext *c= NULL;
-    FILE *f;
     AVPacket pkt;
 
     AVFrame *pictureUYVY;
     AVFrame *pictureYUV420;
 
+    AVFormatContext *oc;
+    AVStream *video_st;
+
     struct SwsContext *img_convert_ctx;
 
 
     int i;
+    int64_t initial_video_pts;
 };
 
 #endif

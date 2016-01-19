@@ -16,30 +16,11 @@ public class Capture
 
    private native void stopCaptureNative(long ptr);
 
-   private long ptr = 0;
-
-   private final CaptureHandler handler;
-   
+   private long ptr = 0;   
    private boolean alive = true;
 
-   public Capture(CaptureHandler handler)
+   public Capture()
    {
-      this.handler = handler;
-   }
-
-   private synchronized void receivedFrameFromNative(boolean valid, int width, int height, int rowBytes, ByteBuffer dataBuffer)
-   {
-      if(alive)
-      {
-         if (valid)
-         {
-            handler.receivedFrame(width, height, rowBytes, dataBuffer);
-         }
-         else
-         {
-            handler.receivedInvalidFrame();
-         }
-      }
    }
 
    public synchronized void startCapture(int decklink, int mode) throws IOException
@@ -70,13 +51,12 @@ public class Capture
       synchronized(this)
       {
          alive = false;
-         handler.stop();
       }
    }
 
    public static void main(String[] args) throws IOException, InterruptedException
    {
-      final Capture capture = new Capture(new MJPEGEncoder());
+      final Capture capture = new Capture();
 
       capture.startCapture(1, 9);
 

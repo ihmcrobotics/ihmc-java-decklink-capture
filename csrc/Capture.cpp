@@ -50,15 +50,24 @@ DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(IDeckLink* decklink, IDeckLinkI
     decklinkInput(decklinkInput),
     vm(vm),
     obj(obj),
-    methodID(methodID)
+    methodID(methodID),
+    initial_video_pts(AV_NOPTS_VALUE)
 {
     avcodec_register_all();
-    codec = avcodec_find_encoder(AV_CODEC_ID_MJPEG);
-    c = avcodec_alloc_context3(codec);
-    if (!codec) {
-        fprintf(stderr, "codec not found\n");
+
+
+    oc = avformat_alloc_context();
+    oc->oformat = av_guess_format("mp4", NULL, NULL);
+    snprintf(oc->filename, sizeof(oc->filename), "test.mp4");
+
+    if(oc->oformat == NULL)
+    {
+        fprintf(stderr, "AV Format mp4 not found\n");
         exit(1);
     }
+
+    oc->oformat->video_codec = AV_CODEC_ID_MJPEG;
+
 }
 
 ULONG DeckLinkCaptureDelegate::AddRef(void)
@@ -77,37 +86,6 @@ ULONG DeckLinkCaptureDelegate::Release(void)
 	return newRefValue;
 }
 
-/*
-static void video_encode_example(const char *filename)
-{
-    int i, ret, x, y, got_output;
-    uint8_t endcode[] = { 0, 0, 1, 0xb7 };
-    printf("Video encoding\n");
-
-
-    /* encode 1 second of video *
-    for(i=0;i<25;i++) {
-
-    }
-    /* get the delayed frames *
-    for (got_output = 1; got_output; i++) {
-        fflush(stdout);
-        ret = avcodec_encode_video2(c, &pkt, NULL, &got_output);
-        if (ret < 0) {
-            fprintf(stderr, "error encoding frame\n");
-            exit(1);
-        }
-        if (got_output) {
-            printf("encoding frame %3d (size=%5d)\n", i, pkt.size);
-            fwrite(pkt.data, 1, pkt.size, f);
-            av_packet_unref(&pkt);
-        }
-    }
-    /* add sequence end code to have a real mpeg file *
-    fwrite(endcode, 1, sizeof(endcode), f);
-    printf("\n");
-}
-*/
 HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame, IDeckLinkAudioInputPacket* audioFrame)
 {
     void* frameBytes;
@@ -145,10 +123,21 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
                 pkt.data = NULL;    // packet data will be allocated by the encoder
                 pkt.size = 0;
 
+                BMDTimeValue frameTime;
+                BMDTimeValue frameDuration;
+                videoFrame->GetStreamTime(&frameTime, &frameDuration, video_st->time_base.den);
+                int64_t pts;
+                pts = frameTime / video_st->time_base.num;
 
+                if (initial_video_pts == AV_NOPTS_VALUE) {
+                    initial_video_pts = pts;
+                }
 
-                pictureUYVY->pts = i;
-                pictureYUV420->pts = i;
+                pts -= initial_video_pts;
+
+                pictureUYVY->pts = pts;
+                pictureYUV420->pts = pts;
+                pkt.pts = pkt.dts = pts;
 
                 avpicture_fill((AVPicture*)pictureUYVY, (uint8_t*) frameBytes, AV_PIX_FMT_UYVY422, pictureUYVY->width, pictureUYVY->height);
                 sws_scale(img_convert_ctx, pictureUYVY->data, pictureUYVY->linesize, 0, c->height, pictureYUV420->data, pictureYUV420->linesize);
@@ -162,7 +151,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
                 }
                 if (got_output) {
                     printf("encoding frame %3d (size=%5d)\n", i, pkt.size);
-                    fwrite(pkt.data, 1, pkt.size, f);
+                    av_write_frame(oc, &pkt);
                     av_free_packet(&pkt); //depreacted, use av_packet_unref(&pkt); after Ubuntu 16.04 comes out
 
                 }
@@ -204,6 +193,25 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
         decklinkInput->StopStreams();
 
 
+        codec = avcodec_find_encoder(AV_CODEC_ID_MJPEG);
+
+        if (!codec) {
+            fprintf(stderr, "codec not found\n");
+            exit(1);
+        }
+
+        video_st = avformat_new_stream(oc, codec);
+        if(!video_st)
+        {
+            throwRuntimeException(env, "Cannot allocate video stream");
+            goto bail;
+        }
+
+        c = video_st->codec;
+
+
+
+
         /* put sample parameters */
         c->qcompress = 0.80;
         /* resolution must be a multiple of two */
@@ -217,15 +225,17 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
         mode->GetFrameRate(&numerator, &denumerator);
 
 
-        c->time_base= (AVRational){(int) numerator, (int) denumerator};
+        c->time_base.den = denumerator;
+        c->time_base.num = numerator;
         c->pix_fmt = AV_PIX_FMT_YUVJ420P;
         /* open it */
         if (avcodec_open2(c, codec, NULL) < 0) {
             throwRuntimeException(env, "Could not open codec");
             goto bail;
         }
-        f = fopen("test.mp4", "wb");
-        if (!f) {
+
+        if(avio_open(&oc->pb, oc->filename, AVIO_FLAG_WRITE) < 0)
+        {
             throwRuntimeException(env, "Could not open file");
             goto bail;
         }
@@ -252,6 +262,8 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
         c->width, c->height,
         c->pix_fmt,
         sws_flags, NULL, NULL, NULL);
+
+        avformat_write_header(oc, NULL);
 
 
 
@@ -293,11 +305,14 @@ void DeckLinkCaptureDelegate::Stop()
     env->DeleteGlobalRef(obj);
     releaseEnv(vm);
 
-    fclose(f);
+
     avcodec_close(c);
     av_free(c);
     av_freep(&pictureYUV420->data[0]);
     avcodec_free_frame(&pictureYUV420);
+
+    av_write_trailer(oc);
+    avio_close(oc->pb);
 
 
 
