@@ -57,7 +57,7 @@ DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(IDeckLink* decklink, IDeckLinkI
 
     oc = avformat_alloc_context();
     oc->oformat = av_guess_format("mp4", NULL, NULL);
-    snprintf(oc->filename, sizeof(oc->filename), "test.mp4");
+
 
     if(oc->oformat == NULL)
     {
@@ -66,6 +66,8 @@ DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(IDeckLink* decklink, IDeckLinkI
     }
 
     oc->oformat->video_codec = AV_CODEC_ID_MJPEG;
+    snprintf(oc->filename, sizeof(oc->filename), "test.mp4");
+    oc->oformat->audio_codec = AV_CODEC_ID_NONE;
 
 }
 
@@ -227,6 +229,12 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
         c->time_base.den = denumerator;
         c->time_base.num = numerator;
         c->pix_fmt = AV_PIX_FMT_YUVJ420P;
+
+        if(oc->oformat->flags & AVFMT_GLOBALHEADER)
+        {
+            c->flags |= CODEC_FLAG_GLOBAL_HEADER;
+        }
+
         /* open it */
         if (avcodec_open2(c, codec, NULL) < 0) {
             throwRuntimeException(env, "Could not open codec");
