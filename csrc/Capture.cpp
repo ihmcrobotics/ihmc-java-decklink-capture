@@ -163,7 +163,8 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
                 if (got_output) {
                     printf("encoding frame %3d (size=%5d)\n", i, pkt.size);
                     fwrite(pkt.data, 1, pkt.size, f);
-                    av_packet_unref(&pkt);
+                    av_free_packet(&pkt); //depreacted, use av_packet_unref(&pkt); after Ubuntu 16.04 comes out
+
                 }
 
             ++i;
