@@ -128,7 +128,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 		{
             printf("Frame received - No input signal detected\n");
 
-            env->CallVoidMethod(obj, methodID, false, 0, 0, NULL);
+            //env->CallVoidMethod(obj, methodID, false, 0, 0, NULL);
 		}
 		else
         {
@@ -218,7 +218,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
 
 
         c->time_base= (AVRational){(int) numerator, (int) denumerator};
-        c->pix_fmt = AV_PIX_FMT_YUV420P;
+        c->pix_fmt = AV_PIX_FMT_YUVJ420P;
         /* open it */
         if (avcodec_open2(c, codec, NULL) < 0) {
             throwRuntimeException(env, "Could not open codec");

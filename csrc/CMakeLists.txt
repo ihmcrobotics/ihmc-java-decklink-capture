@@ -7,7 +7,7 @@ include_directories(${JNI_INCLUDE_DIRS} "${SDK_PATH}/include" ${AVLIB_INCLUDE_DI
 
 add_library(JavaDecklink SHARED Capture.cpp "${SDK_PATH}/include/DeckLinkAPIDispatch.cpp")
 
-target_link_libraries(JavaDecklink m dl pthread ${AVLIB_LIRARIES})
+target_link_libraries(JavaDecklink m dl pthread ${AVLIB_LIBRARIES})
 
 
 
