@@ -21,7 +21,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_getHardwareTime
  * Signature: (Ljava/lang/String;ID)J
  */
 JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
-  (JNIEnv *, jobject, jstring, jint, jdouble);
+  (JNIEnv *, jobject, jstring, jint, jint);
 
 /*
  * Class:     us_ihmc_javadecklink_Capture
