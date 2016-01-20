@@ -366,23 +366,9 @@ int64_t DeckLinkCaptureDelegate::getHardwareTime()
 
 void DeckLinkCaptureDelegate::Stop()
 {
-
     printf("Stopping capture\n");
     decklinkInput->StopStreams();
     decklinkInput->DisableVideoInput();
-
-    if (decklinkInput != NULL)
-    {
-        decklinkInput->Release();
-        decklinkInput = NULL;
-    }
-
-    if (decklink != NULL)
-    {
-        decklink->Release();
-        decklink = NULL;
-    }
-
 }
 
 DeckLinkCaptureDelegate::~DeckLinkCaptureDelegate()
@@ -425,6 +411,17 @@ DeckLinkCaptureDelegate::~DeckLinkCaptureDelegate()
     sws_freeContext(img_convert_ctx);
 
 
+    if (decklinkInput != NULL)
+    {
+        decklinkInput->Release();
+        decklinkInput = NULL;
+    }
+
+    if (decklink != NULL)
+    {
+        decklink->Release();
+        decklink = NULL;
+    }
 }
 
 
