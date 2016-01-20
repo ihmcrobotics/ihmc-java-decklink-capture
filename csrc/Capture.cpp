@@ -391,7 +391,6 @@ DeckLinkCaptureDelegate::~DeckLinkCaptureDelegate()
             av_write_trailer(oc);
             avio_close(oc->pb);
         }
-        avformat_free_context(oc);
     }
 
     if(c != NULL)
