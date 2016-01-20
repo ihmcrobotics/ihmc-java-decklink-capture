@@ -52,7 +52,8 @@ DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, double qu
     obj(obj),
     methodID(methodID),
     initial_video_pts(AV_NOPTS_VALUE),
-    quality(quality)
+    quality(quality),
+    die(false)
 {
     av_register_all();
     avcodec_register_all();
@@ -96,17 +97,19 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 {
     void* frameBytes;
 
+
+    JNIEnv* env = getEnv(vm);
+    if(env == 0)
+    {
+        // Cannot throw a runtime exception because we don't have an env
+        std::cerr << "Cannot load env" << std::endl;
+        return S_OK;
+    }
+
 	// Handle Video Frame
 	if (videoFrame)
     {
 
-        JNIEnv* env = getEnv(vm);
-        if(env == 0)
-        {
-            // Cannot throw a runtime exception because we don't have an env
-            std::cerr << "Cannot load env" << std::endl;
-            return S_OK;
-        }
 
 		if (videoFrame->GetFlags() & bmdFrameHasNoInputSource)
 		{
@@ -165,11 +168,20 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 
 
 		}
-
-        releaseEnv(vm);
-
 	}
 
+    if(die)
+    {
+        printf("Stopping capture due to signal");
+        decklinkInput->StopStreams();
+        decklinkInput->FlushStreams();
+        decklinkInput->DisableVideoInput();
+
+
+        env->DeleteGlobalRef(obj);
+        releaseEnv(vm);
+        delete this;
+    }
 
 	return S_OK;
 }
@@ -201,6 +213,12 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
     {
         decklinkInput->StopStreams();
 
+        if(codec)
+        {
+            throwRuntimeException(env, "Cannot change video resolution while capturing. Stopping capture.");
+            delete this;
+            return S_OK;
+        }
 
         codec = avcodec_find_encoder(AV_CODEC_ID_MJPEG);
 
@@ -316,10 +334,13 @@ int64_t DeckLinkCaptureDelegate::getHardwareTime()
     return -1;
 }
 
+void DeckLinkCaptureDelegate::Stop()
+{
+    die = true;
+}
+
 DeckLinkCaptureDelegate::~DeckLinkCaptureDelegate()
 {
-    decklinkInput->StopStreams();
-    decklinkInput->DisableVideoInput();
 
     if (decklinkInput != NULL)
     {
@@ -369,12 +390,6 @@ DeckLinkCaptureDelegate::~DeckLinkCaptureDelegate()
 
     sws_freeContext(img_convert_ctx);
 
-    JNIEnv* env = getEnv(vm);
-    if(env)
-    {
-        env->DeleteGlobalRef(obj);
-        releaseEnv(vm);
-    }
 
 }
 
