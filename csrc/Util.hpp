@@ -59,6 +59,9 @@ inline void throwRuntimeException(JNIEnv* env, std::string file, std::string fun
     vm->DetachCurrentThread();
 }
 
+
+
+
 class ThreadJNIEnv {
 public:
     JavaVM *vm;
@@ -77,3 +80,19 @@ public:
     }
 };
 
+static boost::thread_specific_ptr<ThreadJNIEnv> envs;
+
+inline JNIEnv* getOrCreateJNIEnv(JavaVM *vm)
+{
+    ThreadJNIEnv *ret = envs.get();
+    if(ret)
+    {
+        return ret->env;
+    }
+    else
+    {
+        ret = new ThreadJNIEnv(vm);
+        envs.reset(ret);
+        return ret->env;
+    }
+}

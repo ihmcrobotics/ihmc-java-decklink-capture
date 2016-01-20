@@ -44,7 +44,6 @@
 
 #include <time.h>
 
-static boost::thread_specific_ptr<ThreadJNIEnv> envs;
 
 DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, double quality, IDeckLink* decklink, IDeckLinkInput* decklinkInput, JavaVM* vm, jobject obj, jmethodID methodID) :
     m_refCount(1),
@@ -99,12 +98,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
     void* frameBytes;
 
 
-    ThreadJNIEnv *jniEnv = envs.get();
-    if(!jniEnv)
-    {
-        envs.reset(new ThreadJNIEnv(vm));
-    }
-    JNIEnv* env = jniEnv->env;
+    JNIEnv* env = getOrCreateJNIEnv(vm);
     if(env == 0)
     {
         // Cannot throw a runtime exception because we don't have an env
@@ -189,12 +183,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
     char*	displayModeName = NULL;
     BMDPixelFormat	pixelFormat = bmdFormat8BitYUV;
 
-    ThreadJNIEnv *jniEnv = envs.get();
-    if(!jniEnv)
-    {
-        envs.reset(new ThreadJNIEnv(vm));
-    }
-    JNIEnv* env = jniEnv->env;
+    JNIEnv* env = getOrCreateJNIEnv(vm);
     if (formatFlags & bmdDetectedVideoInputRGB444)
     {
         throwRuntimeException(env, "Unsupported input format: RGB444");
