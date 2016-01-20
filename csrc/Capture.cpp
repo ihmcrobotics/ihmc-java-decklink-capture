@@ -107,7 +107,66 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
     }
 
 	// Handle Video Frame
-	if (videoFrame)
+    if(die)
+    {
+        printf("Stopping capture due to signal");
+        decklinkInput->StopStreams();
+        decklinkInput->FlushStreams();
+        decklinkInput->DisableVideoInput();
+
+        if (decklinkInput != NULL)
+        {
+            decklinkInput->Release();
+            decklinkInput = NULL;
+        }
+
+        if (decklink != NULL)
+        {
+            decklink->Release();
+            decklink = NULL;
+        }
+
+
+
+
+        if(c != NULL)
+        {
+            avcodec_close(c);
+            av_free(c);
+        }
+
+        if(pictureYUV420 != NULL)
+        {
+            av_freep(&pictureYUV420->data[0]);
+            avcodec_free_frame(&pictureYUV420);
+        }
+
+        if(pictureUYVY != NULL)
+        {
+            avcodec_free_frame(&pictureUYVY);
+        }
+
+
+        if(video_st != NULL)
+        {
+            av_freep(video_st);
+        }
+
+        av_write_trailer(oc);
+        avio_close(oc->pb);
+
+        if(oc != NULL)
+        {
+            av_free(oc);
+        }
+
+        sws_freeContext(img_convert_ctx);
+
+
+        env->DeleteGlobalRef(obj);
+        releaseEnv(vm);
+    }
+    else if (videoFrame)
     {
 
 
@@ -170,65 +229,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 		}
 	}
 
-    if(die)
-    {
-        printf("Stopping capture due to signal");
-        decklinkInput->StopStreams();
-        decklinkInput->FlushStreams();
-        decklinkInput->DisableVideoInput();
 
-        if (decklinkInput != NULL)
-        {
-            decklinkInput->Release();
-            decklinkInput = NULL;
-        }
-
-        if (decklink != NULL)
-        {
-            decklink->Release();
-            decklink = NULL;
-        }
-
-
-
-
-        if(c != NULL)
-        {
-            avcodec_close(c);
-            av_free(c);
-        }
-
-        if(pictureYUV420 != NULL)
-        {
-            av_freep(&pictureYUV420->data[0]);
-            avcodec_free_frame(&pictureYUV420);
-        }
-
-        if(pictureUYVY != NULL)
-        {
-            avcodec_free_frame(&pictureUYVY);
-        }
-
-
-        if(video_st != NULL)
-        {
-            av_freep(video_st);
-        }
-
-        av_write_trailer(oc);
-        avio_close(oc->pb);
-
-        if(oc != NULL)
-        {
-            av_free(oc);
-        }
-
-        sws_freeContext(img_convert_ctx);
-
-
-        env->DeleteGlobalRef(obj);
-        releaseEnv(vm);
-    }
 
 	return S_OK;
 }
