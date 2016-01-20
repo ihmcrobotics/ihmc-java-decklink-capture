@@ -405,7 +405,7 @@ JNIEXPORT void JNICALL Java_us_ihmc_javadecklink_Capture_stopCaptureNative
   (JNIEnv *, jobject, jlong delegatePtr)
 {
     DeckLinkCaptureDelegate* delegate = (DeckLinkCaptureDelegate*) delegatePtr;
-    delete delegate;
+    delegate->Stop();
 }
 
 
