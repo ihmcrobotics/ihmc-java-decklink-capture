@@ -46,7 +46,7 @@ public class Capture
       captureHandler.receivedFrameAtTime(hardwareTime, pts);
    }
 
-   public void startCapture(String filename, int decklink, int quality) throws IOException
+   public void startCapture(String filename, int decklink, double quality) throws IOException
    {
       if(!alive)
       {
@@ -56,7 +56,12 @@ public class Capture
       {
          throw new IOException("Capture already started");
       }
-      ptr = startCaptureNative(filename, decklink, quality);
+      
+      quality = Math.min(1, Math.max(quality, 0));
+      
+      int mjpegQuality = 2 + ((int)((1.0 - quality) * 30));
+      
+      ptr = startCaptureNative(filename, decklink, mjpegQuality);
       if (ptr == 0)
       {
          throw new IOException("Cannot open capture card");
