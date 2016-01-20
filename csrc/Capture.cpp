@@ -44,6 +44,8 @@
 
 #include <time.h>
 
+static boost::thread_specific_ptr<ThreadJNIEnv> envs;
+
 DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, double quality, IDeckLink* decklink, IDeckLinkInput* decklinkInput, JavaVM* vm, jobject obj, jmethodID methodID) :
     m_refCount(1),
     decklink(decklink),
@@ -52,8 +54,7 @@ DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, double qu
     obj(obj),
     methodID(methodID),
     initial_video_pts(AV_NOPTS_VALUE),
-    quality(quality),
-    die(false)
+    quality(quality)
 {
     av_register_all();
     avcodec_register_all();
@@ -98,7 +99,12 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
     void* frameBytes;
 
 
-    JNIEnv* env = getEnv(vm);
+    ThreadJNIEnv *jniEnv = envs.get();
+    if(!jniEnv)
+    {
+        envs.reset(new ThreadJNIEnv(vm));
+    }
+    JNIEnv* env = jniEnv->env;
     if(env == 0)
     {
         // Cannot throw a runtime exception because we don't have an env
@@ -107,66 +113,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
     }
 
 	// Handle Video Frame
-    if(die)
-    {
-        printf("Stopping capture due to signal");
-        decklinkInput->StopStreams();
-        decklinkInput->FlushStreams();
-        decklinkInput->DisableVideoInput();
-
-        if (decklinkInput != NULL)
-        {
-            decklinkInput->Release();
-            decklinkInput = NULL;
-        }
-
-        if (decklink != NULL)
-        {
-            decklink->Release();
-            decklink = NULL;
-        }
-
-
-
-
-        if(c != NULL)
-        {
-            avcodec_close(c);
-            av_free(c);
-        }
-
-        if(pictureYUV420 != NULL)
-        {
-            av_freep(&pictureYUV420->data[0]);
-            avcodec_free_frame(&pictureYUV420);
-        }
-
-        if(pictureUYVY != NULL)
-        {
-            avcodec_free_frame(&pictureUYVY);
-        }
-
-
-        if(video_st != NULL)
-        {
-            av_freep(video_st);
-        }
-
-        av_write_trailer(oc);
-        avio_close(oc->pb);
-
-        if(oc != NULL)
-        {
-            av_free(oc);
-        }
-
-        sws_freeContext(img_convert_ctx);
-
-
-        env->DeleteGlobalRef(obj);
-        releaseEnv(vm);
-    }
-    else if (videoFrame)
+    if (videoFrame)
     {
 
 
@@ -242,7 +189,12 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
     char*	displayModeName = NULL;
     BMDPixelFormat	pixelFormat = bmdFormat8BitYUV;
 
-    JNIEnv* env = getEnv(vm);
+    ThreadJNIEnv *jniEnv = envs.get();
+    if(!jniEnv)
+    {
+        envs.reset(new ThreadJNIEnv(vm));
+    }
+    JNIEnv* env = jniEnv->env;
     if (formatFlags & bmdDetectedVideoInputRGB444)
     {
         throwRuntimeException(env, "Unsupported input format: RGB444");
@@ -384,14 +336,66 @@ int64_t DeckLinkCaptureDelegate::getHardwareTime()
 
 void DeckLinkCaptureDelegate::Stop()
 {
-    die = true;
+
+    printf("Stopping capture due to signal");
+    decklinkInput->StopStreams();
+    decklinkInput->DisableVideoInput();
+
+    if (decklinkInput != NULL)
+    {
+        decklinkInput->Release();
+        decklinkInput = NULL;
+    }
+
+    if (decklink != NULL)
+    {
+        decklink->Release();
+        decklink = NULL;
+    }
+
 }
 
 DeckLinkCaptureDelegate::~DeckLinkCaptureDelegate()
 {
+    if(oc)
+    {
+        av_write_trailer(oc);
+        avio_close(oc->pb);
+    }
+
+    if(c != NULL)
+    {
+        avcodec_close(c);
+        av_free(c);
+    }
+
+    if(pictureYUV420 != NULL)
+    {
+        av_freep(&pictureYUV420->data[0]);
+        avcodec_free_frame(&pictureYUV420);
+    }
+
+    if(pictureUYVY != NULL)
+    {
+        avcodec_free_frame(&pictureUYVY);
+    }
 
 
+    if(video_st != NULL)
+    {
+        av_freep(video_st);
+    }
 
+
+    if(oc != NULL)
+    {
+        av_free(oc);
+    }
+
+    sws_freeContext(img_convert_ctx);
+
+
+   // env->DeleteGlobalRef(obj);
 
 }
 

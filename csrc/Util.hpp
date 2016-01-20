@@ -9,7 +9,8 @@
 
 #include <unistd.h>
 #include <sys/syscall.h>
-
+#include <boost/thread/tss.hpp>
+#include <iostream>
 
 /**
  * Check if cond == true, otherwise throw a Java RuntimeException
@@ -26,45 +27,7 @@
 
 inline void throwRuntimeException(JNIEnv* env, std::string file, std::string function, int line, int err);
 
-/**
- * Attach the current thread to the VM if necessary and return the Java environment
- *
- * @param vm Java VM
- */
-inline JNIEnv* getEnv(JavaVM* vm)
-{
-    // Get the java environment
-    JNIEnv* env;
-    int getEnvStat = vm->GetEnv((void **) &env, JNI_VERSION_1_6);
-    if (getEnvStat == JNI_EDETACHED)
-    {
-        std::cout << "Attaching native thread to JVM" << std::endl;
 
-        if (vm->AttachCurrentThread((void **) &env, NULL)
-                != 0)
-        {
-            std::cerr << "Failed to attach" << std::endl;
-            return 0;
-        }
-
-    }
-    else if (getEnvStat == JNI_EVERSION)
-    {
-        std::cerr << "GetEnv: Version not supported" << std::endl;
-        return 0;
-    }
-    else if (getEnvStat == JNI_OK)
-    {
-        //
-    }
-
-    return env;
-}
-
-inline void releaseEnv(JavaVM* vm)
-{
-    vm->DetachCurrentThread();
-}
 
 /**
  * Helper function to throw a Java runtime exception
@@ -95,3 +58,22 @@ inline void throwRuntimeException(JNIEnv* env, std::string file, std::string fun
     env->GetJavaVM(&vm);
     vm->DetachCurrentThread();
 }
+
+class ThreadJNIEnv {
+public:
+    JavaVM *vm;
+    JNIEnv *env;
+
+    ThreadJNIEnv(JavaVM *vm) :
+        vm(vm)
+    {
+        std::cout << "Attaching thread" << std::endl;
+        vm->AttachCurrentThread((void **) &env, NULL);
+    }
+
+    ~ThreadJNIEnv() {
+        std::cout << "Detaching thread" << std::endl;
+        vm->DetachCurrentThread();
+    }
+};
+

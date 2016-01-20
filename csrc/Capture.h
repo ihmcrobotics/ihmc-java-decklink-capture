@@ -82,8 +82,6 @@ private:
     struct SwsContext *img_convert_ctx;
 
     int64_t initial_video_pts;
-
-    volatile bool die;
 };
 
 #endif
