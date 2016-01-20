@@ -128,7 +128,7 @@ ULONG DeckLinkCaptureDelegate::Release(void)
 	int32_t newRefValue = __sync_sub_and_fetch(&m_refCount, 1);
 	if (newRefValue == 0)
 	{
-		delete this;
+        delete this;
 		return 0;
 	}
 	return newRefValue;
@@ -228,7 +228,8 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
     if (formatFlags & bmdDetectedVideoInputRGB444)
     {
         throwRuntimeException(env, "Unsupported input format: RGB444");
-        goto bail;
+        decklinkInput->DisableVideoInput();
+        return S_OK;
     }
 
     mode->GetName((const char**)&displayModeName);
@@ -246,22 +247,25 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
         if(codec)
         {
             throwRuntimeException(env, "Cannot change video resolution while capturing. Stopping capture.");
-            delete this;
+            decklinkInput->DisableVideoInput();
             return S_OK;
         }
 
         codec = avcodec_find_encoder(AV_CODEC_ID_MJPEG);
 
         if (!codec) {
-            fprintf(stderr, "codec not found\n");
-            exit(1);
+            throwRuntimeException(env, "codec not found\n");
+            decklinkInput->DisableVideoInput();
+            return S_OK;
         }
 
         video_st = avformat_new_stream(oc, codec);
         if(!video_st)
         {
             throwRuntimeException(env, "Cannot allocate video stream");
-            goto bail;
+            decklinkInput->DisableVideoInput();
+            return S_OK;
+
         }
 
         c = video_st->codec;
@@ -296,13 +300,16 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
         /* open it */
         if (avcodec_open2(c, codec, NULL) < 0) {
             throwRuntimeException(env, "Could not open codec");
-            goto bail;
+            decklinkInput->DisableVideoInput();
+            return S_OK;
         }
 
         if(avio_open(&oc->pb, oc->filename, AVIO_FLAG_WRITE) < 0)
         {
             throwRuntimeException(env, "Could not open file");
-            goto bail;
+            decklinkInput->DisableVideoInput();
+            return S_OK;
+
         }
 
         pictureYUV420 = avcodec_alloc_frame();
@@ -310,7 +317,9 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
                              c->pix_fmt, 32);
         if (ret < 0) {
             throwRuntimeException(env, "could not alloc raw picture buffer\n");
-            goto bail;
+            decklinkInput->DisableVideoInput();
+            return S_OK;
+
         }
         pictureYUV420->format = c->pix_fmt;
         pictureYUV420->width  = c->width;
@@ -338,13 +347,14 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
         if (result != S_OK)
         {
             throwRuntimeException(env, "Failed to switch to new video mode");
-            goto bail;
+            decklinkInput->DisableVideoInput();
+            return S_OK;
+
         }
 
         decklinkInput->StartStreams();
     }
 
-bail:
     std::cout << "Detected new mode " << mode->GetWidth() << "x" << mode->GetHeight() << std::endl;
 	return S_OK;
 }
@@ -376,8 +386,12 @@ DeckLinkCaptureDelegate::~DeckLinkCaptureDelegate()
 {
     if(oc)
     {
-        av_write_trailer(oc);
-        avio_close(oc->pb);
+        if(oc->pb->write_flag)
+        {
+            av_write_trailer(oc);
+            avio_close(oc->pb);
+        }
+        avformat_free_context(oc);
     }
 
     if(c != NULL)
