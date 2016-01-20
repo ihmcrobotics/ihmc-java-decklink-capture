@@ -364,7 +364,6 @@ DeckLinkCaptureDelegate::~DeckLinkCaptureDelegate()
 
     if(oc != NULL)
     {
-        avformat_free_context(oc);
         av_free(oc);
     }
 
