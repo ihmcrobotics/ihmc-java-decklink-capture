@@ -291,6 +291,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
         }
 
         c->global_quality = quality;
+        c->compression_level = quality;
         c->flags |= CODEC_FLAG_QSCALE;
 
         /* open it */
