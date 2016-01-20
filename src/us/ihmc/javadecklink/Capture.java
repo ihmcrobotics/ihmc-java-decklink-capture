@@ -1,7 +1,6 @@
 package us.ihmc.javadecklink;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 
 import us.ihmc.tools.nativelibraries.NativeLibraryLoader;
 
@@ -12,18 +11,42 @@ public class Capture
       NativeLibraryLoader.loadLibrary("us.ihmc.javadecklink.lib", "JavaDecklink");
    }
 
-   private native long startCaptureNative(int decklink, int mode);
-
+   private native long getHardwareTime(long ptr);
+   private native long startCaptureNative(String filename, int decklink, int quality);
    private native void stopCaptureNative(long ptr);
 
+   private final CaptureHandler captureHandler;
+   
    private long ptr = 0;   
    private boolean alive = true;
 
-   public Capture()
+   
+   public Capture(CaptureHandler captureHandler)
    {
+      this.captureHandler = captureHandler;
+            
+   }
+   
+   public long getHardwareTime()
+   {
+      if(!alive)
+      {
+         throw new RuntimeException("This Capture interface has been stopped");
+      }
+      if (ptr == 0)
+      {
+         return -1;
+      }
+      
+      return getHardwareTime(ptr);
+   }
+   
+   private void receivedFrameAtHardwareTimeFromNative(long hardwareTime, long pts)
+   {
+      captureHandler.receivedFrameAtTime(hardwareTime, pts);
    }
 
-   public synchronized void startCapture(int decklink, int mode) throws IOException
+   public void startCapture(String filename, int decklink, int quality) throws IOException
    {
       if(!alive)
       {
@@ -33,7 +56,7 @@ public class Capture
       {
          throw new IOException("Capture already started");
       }
-      ptr = startCaptureNative(decklink, mode);
+      ptr = startCaptureNative(filename, decklink, quality);
       if (ptr == 0)
       {
          throw new IOException("Cannot open capture card");
@@ -48,17 +71,22 @@ public class Capture
       }
 
       stopCaptureNative(ptr);
-      synchronized(this)
-      {
-         alive = false;
-      }
+      alive = false;
    }
 
    public static void main(String[] args) throws IOException, InterruptedException
    {
-      final Capture capture = new Capture();
+      final Capture capture = new Capture(new CaptureHandler()
+      {
+         
+         @Override
+         public void receivedFrameAtTime(long hardwareTime, long pts)
+         {
+            System.out.println("Received frame at " + hardwareTime + ", pts: " + pts);
+         }
+      });
 
-      capture.startCapture(1, 9);
+      capture.startCapture("aap.mp4", 1, 0.9);
 
       Thread.sleep(5000);
       capture.stopCapture();

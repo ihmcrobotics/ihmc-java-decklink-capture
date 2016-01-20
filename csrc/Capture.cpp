@@ -42,18 +42,20 @@
 #include "Util.hpp"
 #include "us_ihmc_javadecklink_Capture.h"
 
+#include <time.h>
 
-
-DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(IDeckLink* decklink, IDeckLinkInput* decklinkInput, JavaVM* vm) :
+DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, double quality, IDeckLink* decklink, IDeckLinkInput* decklinkInput, JavaVM* vm, jobject obj, jmethodID methodID) :
     m_refCount(1),
     decklink(decklink),
     decklinkInput(decklinkInput),
     vm(vm),
-    initial_video_pts(AV_NOPTS_VALUE)
+    obj(obj),
+    methodID(methodID),
+    initial_video_pts(AV_NOPTS_VALUE),
+    quality(quality)
 {
     av_register_all();
     avcodec_register_all();
-
 
     oc = avformat_alloc_context();
     oc->oformat = av_guess_format("mp4", NULL, NULL);
@@ -66,8 +68,11 @@ DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(IDeckLink* decklink, IDeckLinkI
     }
 
     oc->oformat->video_codec = AV_CODEC_ID_MJPEG;
-    snprintf(oc->filename, sizeof(oc->filename), "test.mp4");
+    snprintf(oc->filename, sizeof(oc->filename), "%s", filename.c_str());
     oc->oformat->audio_codec = AV_CODEC_ID_NONE;
+
+
+
 
 }
 
@@ -111,11 +116,6 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 		}
 		else
         {
-
-            printf("Frame received - Size: %li bytes\n",
-				videoFrame->GetRowBytes() * videoFrame->GetHeight());
-
-
 				videoFrame->GetBytes(&frameBytes);
                 //write(g_videoOutputFile, frameBytes, videoFrame->GetRowBytes() * videoFrame->GetHeight());
 
@@ -130,8 +130,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
                 int64_t pts;
                 pts = frameTime / video_st->time_base.num;
 
-                videoFrame->GetStreamTime(&frameTime, &frameDuration, 1000000);
-                printf("Got frame at %ld\n", frameTime);
+
 
 
                 if (initial_video_pts == AV_NOPTS_VALUE) {
@@ -147,22 +146,27 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
                 avpicture_fill((AVPicture*)pictureUYVY, (uint8_t*) frameBytes, AV_PIX_FMT_UYVY422, pictureUYVY->width, pictureUYVY->height);
                 sws_scale(img_convert_ctx, pictureUYVY->data, pictureUYVY->linesize, 0, c->height, pictureYUV420->data, pictureYUV420->linesize);
 
+
+                pictureYUV420->quality = quality;
                 /* encode the image */
                 int got_output;
                 int ret = avcodec_encode_video2(c, &pkt, pictureYUV420, &got_output);
                 if (ret < 0) {
                     fprintf(stderr, "error encoding frame\n");
-                    exit(1);
                 }
-                if (got_output) {
-                    printf("encoding frame %3d (size=%5d)\n", i, pkt.size);
+                else if (got_output) {
                     av_write_frame(oc, &pkt);
                     av_free_packet(&pkt); //depreacted, use av_packet_unref(&pkt); after Ubuntu 16.04 comes out
 
+
+                    videoFrame->GetHardwareReferenceTimestamp(1000000000, &frameTime, &frameDuration);
+                    env->CallVoidMethod(obj, methodID, frameTime, pts);
                 }
 
-            ++i;
+
 		}
+
+        releaseEnv(vm);
 
 	}
 
@@ -218,7 +222,6 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
 
 
         /* put sample parameters */
-        c->qcompress = 0.80;
         /* resolution must be a multiple of two */
         c->width = mode->GetWidth();
         c->height = mode->GetHeight();
@@ -238,6 +241,8 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
         {
             c->flags |= CODEC_FLAG_GLOBAL_HEADER;
         }
+
+        c->flags |= CODEC_FLAG_QSCALE;
 
         /* open it */
         if (avcodec_open2(c, codec, NULL) < 0) {
@@ -268,6 +273,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
         pictureUYVY->height = c->height;
         pictureUYVY->format = AV_PIX_FMT_UYVY422;
 
+
         img_convert_ctx = sws_getContext(c->width, c->height,
         AV_PIX_FMT_UYVY422,
         c->width, c->height,
@@ -294,7 +300,23 @@ bail:
 	return S_OK;
 }
 
-void DeckLinkCaptureDelegate::Stop()
+int64_t DeckLinkCaptureDelegate::getHardwareTime()
+{
+    if(decklinkInput)
+    {
+        BMDTimeValue hardwareTime;
+        BMDTimeValue timeInFrame;
+        BMDTimeValue ticksPerFrame;
+        if(decklinkInput->GetHardwareReferenceClock(1000000000, &hardwareTime, &timeInFrame, &ticksPerFrame) == S_OK)
+        {
+            return (int64_t) hardwareTime;
+        }
+    }
+
+    return -1;
+}
+
+DeckLinkCaptureDelegate::~DeckLinkCaptureDelegate()
 {
     decklinkInput->StopStreams();
     decklinkInput->DisableVideoInput();
@@ -314,28 +336,64 @@ void DeckLinkCaptureDelegate::Stop()
 
     releaseEnv(vm);
 
+    if(c != NULL)
+    {
+        avcodec_close(c);
+        av_free(c);
+    }
 
-    avcodec_close(c);
-    av_free(c);
-    av_freep(&pictureYUV420->data[0]);
-    avcodec_free_frame(&pictureYUV420);
+    if(pictureYUV420 != NULL)
+    {
+        av_freep(&pictureYUV420->data[0]);
+        avcodec_free_frame(&pictureYUV420);
+    }
+
+    if(pictureUYVY != NULL)
+    {
+        avcodec_free_frame(&pictureUYVY);
+    }
+
+
+    if(video_st != NULL)
+    {
+        av_freep(video_st);
+    }
 
     av_write_trailer(oc);
     avio_close(oc->pb);
 
+    if(oc != NULL)
+    {
+        avformat_free_context(oc);
+        av_free(oc);
+    }
+
+    sws_freeContext(img_convert_ctx);
+
+
+
 
 
 }
+
+
+JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_getHardwareTime
+  (JNIEnv *, jobject, jlong ptr)
+{
+    return ((DeckLinkCaptureDelegate*) ptr)->getHardwareTime();
+}
+
 
 JNIEXPORT void JNICALL Java_us_ihmc_javadecklink_Capture_stopCaptureNative
   (JNIEnv *, jobject, jlong delegatePtr)
 {
     DeckLinkCaptureDelegate* delegate = (DeckLinkCaptureDelegate*) delegatePtr;
-    delegate->Stop();
+    delete delegate;
 }
 
+
 JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
-  (JNIEnv *env, jobject obj, jint idx, jint displayModeId)
+  (JNIEnv *env, jobject obj, jstring filename, jint idx, jint quality)
 {
 
 	IDeckLinkIterator*				deckLinkIterator = NULL;
@@ -352,8 +410,23 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
 
     IDeckLinkInput*	g_deckLinkInput = NULL;
 
+    int displayModeId;
+
     JavaVM* vm;
     JNIassert(env, env->GetJavaVM(&vm) == 0);
+
+    const char* str = env->GetStringUTFChars(filename,0);
+    std::string cfilename(str);
+    env->ReleaseStringUTFChars(filename, str);
+
+    jclass cls = env->GetObjectClass(obj);
+    jmethodID method = env->GetMethodID(cls, "receivedFrameAtHardwareTimeFromNative", "(JJ)V");
+    if(!method)
+    {
+        throwRuntimeException(env, "Cannot find method receivedFrameAtHardwareTimeFromNative");
+        goto bail;
+    }
+
 
 
 	// Get the DeckLink device
@@ -425,7 +498,10 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
 	}
 
 	// Configure the capture callback
-    delegate = new DeckLinkCaptureDelegate(deckLink, g_deckLinkInput, vm);
+    delegate = new DeckLinkCaptureDelegate(cfilename, quality, deckLink, g_deckLinkInput, vm, obj, method);
+
+
+
 	g_deckLinkInput->SetCallback(delegate);
 
     // Start capturing
@@ -433,14 +509,17 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
     if (result != S_OK)
     {
         fprintf(stderr, "Failed to enable video input. Is another application using the card?\n");
+        delete delegate;
         goto bail;
     }
 
     result = g_deckLinkInput->StartStreams();
     if (result != S_OK)
+    {
+        delete delegate;
         goto bail;
 
-
+    }
 
 bail:
 

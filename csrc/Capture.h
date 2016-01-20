@@ -30,6 +30,7 @@
 
 #include "DeckLinkAPI.h"
 #include <jni.h>
+#include <string>
 
 extern "C" {
 #include "libavcodec/avcodec.h"
@@ -44,7 +45,7 @@ static int sws_flags = SWS_BICUBIC;
 class DeckLinkCaptureDelegate : public IDeckLinkInputCallback
 {
 public:
-    DeckLinkCaptureDelegate(IDeckLink*, IDeckLinkInput*decklinkInput, JavaVM* vm);
+    DeckLinkCaptureDelegate(std::string filename, double quality, IDeckLink*, IDeckLinkInput*decklinkInput, JavaVM* vm, jobject obj, jmethodID methodID);
 
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, LPVOID *ppv) { return E_NOINTERFACE; }
 	virtual ULONG STDMETHODCALLTYPE AddRef(void);
@@ -52,7 +53,9 @@ public:
 	virtual HRESULT STDMETHODCALLTYPE VideoInputFormatChanged(BMDVideoInputFormatChangedEvents, IDeckLinkDisplayMode*, BMDDetectedVideoInputFormatFlags);
 	virtual HRESULT STDMETHODCALLTYPE VideoInputFrameArrived(IDeckLinkVideoInputFrame*, IDeckLinkAudioInputPacket*);
 
-    virtual void Stop();
+    virtual int64_t getHardwareTime();
+
+    virtual ~DeckLinkCaptureDelegate();
 
 private:
 	int32_t				m_refCount;
@@ -60,6 +63,9 @@ private:
     IDeckLink* decklink;
     IDeckLinkInput* decklinkInput;
     JavaVM* vm;
+    jobject obj;
+    jmethodID methodID;
+    int quality;
 
     AVCodec *codec;
     AVCodecContext *c= NULL;
@@ -73,8 +79,6 @@ private:
 
     struct SwsContext *img_convert_ctx;
 
-
-    int i;
     int64_t initial_video_pts;
 };
 

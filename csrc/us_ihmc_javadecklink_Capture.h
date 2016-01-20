@@ -9,11 +9,19 @@ extern "C" {
 #endif
 /*
  * Class:     us_ihmc_javadecklink_Capture
+ * Method:    getHardwareTime
+ * Signature: (J)J
+ */
+JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_getHardwareTime
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     us_ihmc_javadecklink_Capture
  * Method:    startCaptureNative
- * Signature: (II)J
+ * Signature: (Ljava/lang/String;ID)J
  */
 JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
-  (JNIEnv *, jobject, jint, jint);
+  (JNIEnv *, jobject, jstring, jint, jdouble);
 
 /*
  * Class:     us_ihmc_javadecklink_Capture
