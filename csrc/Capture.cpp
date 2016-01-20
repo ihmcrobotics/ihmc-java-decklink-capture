@@ -334,7 +334,7 @@ DeckLinkCaptureDelegate::~DeckLinkCaptureDelegate()
     }
 
 
-    releaseEnv(vm);
+
 
     if(c != NULL)
     {
@@ -370,9 +370,12 @@ DeckLinkCaptureDelegate::~DeckLinkCaptureDelegate()
 
     sws_freeContext(img_convert_ctx);
 
-
-
-
+    JNIEnv* env = getEnv(vm);
+    if(env)
+    {
+        env->DeleteGlobalRef(obj);
+        releaseEnv(vm);
+    }
 
 }
 
@@ -498,7 +501,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
 	}
 
 	// Configure the capture callback
-    delegate = new DeckLinkCaptureDelegate(cfilename, quality, deckLink, g_deckLinkInput, vm, obj, method);
+    delegate = new DeckLinkCaptureDelegate(cfilename, quality, deckLink, g_deckLinkInput, vm, env->NewGlobalRef(obj), method);
 
 
 
