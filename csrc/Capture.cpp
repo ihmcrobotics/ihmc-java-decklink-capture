@@ -45,12 +45,53 @@
 #include <time.h>
 
 
+
+class ThreadJNIEnv {
+public:
+    DeckLinkCaptureDelegate *delegate;
+    JNIEnv *env;
+
+    ThreadJNIEnv(DeckLinkCaptureDelegate* delegate) :
+        delegate(delegate)
+    {
+        std::cout << "Attaching thread" << std::endl;
+        delegate->vm->AttachCurrentThread((void **) &env, NULL);
+    }
+
+    ~ThreadJNIEnv() {
+        std::cout << "Finalizing capture" << std::endl;
+        env->DeleteGlobalRef(delegate->obj);
+        JavaVM* vm = delegate->vm;
+        delete delegate;
+        vm->DetachCurrentThread();
+
+    }
+};
+
+static boost::thread_specific_ptr<ThreadJNIEnv> envs;
+
+inline JNIEnv* registerDecklinkDelegate(DeckLinkCaptureDelegate* delegate)
+{
+    ThreadJNIEnv *ret = envs.get();
+    if(ret)
+    {
+        return ret->env;
+    }
+    else
+    {
+        ret = new ThreadJNIEnv(delegate);
+        envs.reset(ret);
+        return ret->env;
+    }
+}
+
+
 DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, double quality, IDeckLink* decklink, IDeckLinkInput* decklinkInput, JavaVM* vm, jobject obj, jmethodID methodID) :
+    vm(vm),
+    obj(obj),
     m_refCount(1),
     decklink(decklink),
     decklinkInput(decklinkInput),
-    vm(vm),
-    obj(obj),
     methodID(methodID),
     initial_video_pts(AV_NOPTS_VALUE),
     quality(quality)
@@ -98,7 +139,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
     void* frameBytes;
 
 
-    JNIEnv* env = getOrCreateJNIEnv(vm);
+    JNIEnv* env = registerDecklinkDelegate(this);
     if(env == 0)
     {
         // Cannot throw a runtime exception because we don't have an env
@@ -183,7 +224,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
     char*	displayModeName = NULL;
     BMDPixelFormat	pixelFormat = bmdFormat8BitYUV;
 
-    JNIEnv* env = getOrCreateJNIEnv(vm);
+    JNIEnv* env = registerDecklinkDelegate(this);
     if (formatFlags & bmdDetectedVideoInputRGB444)
     {
         throwRuntimeException(env, "Unsupported input format: RGB444");
@@ -326,7 +367,7 @@ int64_t DeckLinkCaptureDelegate::getHardwareTime()
 void DeckLinkCaptureDelegate::Stop()
 {
 
-    printf("Stopping capture due to signal");
+    printf("Stopping capture\n");
     decklinkInput->StopStreams();
     decklinkInput->DisableVideoInput();
 
@@ -383,8 +424,6 @@ DeckLinkCaptureDelegate::~DeckLinkCaptureDelegate()
 
     sws_freeContext(img_convert_ctx);
 
-
-   // env->DeleteGlobalRef(obj);
 
 }
 

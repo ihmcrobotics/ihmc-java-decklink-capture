@@ -58,14 +58,16 @@ public:
     virtual ~DeckLinkCaptureDelegate();
 
     virtual void Stop();
+    JavaVM* vm;
+    jobject obj;
 
 private:
 	int32_t				m_refCount;
 
     IDeckLink* decklink;
     IDeckLinkInput* decklinkInput;
-    JavaVM* vm;
-    jobject obj;
+
+
     jmethodID methodID;
     int quality;
 

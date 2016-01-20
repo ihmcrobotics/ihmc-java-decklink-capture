@@ -61,38 +61,3 @@ inline void throwRuntimeException(JNIEnv* env, std::string file, std::string fun
 
 
 
-
-class ThreadJNIEnv {
-public:
-    JavaVM *vm;
-    JNIEnv *env;
-
-    ThreadJNIEnv(JavaVM *vm) :
-        vm(vm)
-    {
-        std::cout << "Attaching thread" << std::endl;
-        vm->AttachCurrentThread((void **) &env, NULL);
-    }
-
-    ~ThreadJNIEnv() {
-        std::cout << "Detaching thread" << std::endl;
-        vm->DetachCurrentThread();
-    }
-};
-
-static boost::thread_specific_ptr<ThreadJNIEnv> envs;
-
-inline JNIEnv* getOrCreateJNIEnv(JavaVM *vm)
-{
-    ThreadJNIEnv *ret = envs.get();
-    if(ret)
-    {
-        return ret->env;
-    }
-    else
-    {
-        ret = new ThreadJNIEnv(vm);
-        envs.reset(ret);
-        return ret->env;
-    }
-}
