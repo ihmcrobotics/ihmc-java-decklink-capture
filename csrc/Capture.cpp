@@ -455,7 +455,7 @@ JNIEXPORT void JNICALL Java_us_ihmc_javadecklink_Capture_stopCaptureNative
 
 
 JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
-  (JNIEnv *env, jobject obj, jstring filename, jint idx, jint quality)
+  (JNIEnv *env, jobject obj, jstring filename, jint device, jint quality)
 {
 
 	IDeckLinkIterator*				deckLinkIterator = NULL;
@@ -473,6 +473,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
     IDeckLinkInput*	g_deckLinkInput = NULL;
 
     int displayModeId;
+    int idx = device;
 
     JavaVM* vm;
     JNIassert(env, env->GetJavaVM(&vm) == 0);
@@ -511,7 +512,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
 
 	if (result != S_OK || deckLink == NULL)
 	{
-        fprintf(stderr, "Unable to get DeckLink device %u\n", idx);
+        fprintf(stderr, "Unable to get DeckLink device %u\n", device);
 		goto bail;
 	}
 
@@ -572,6 +573,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
     {
         fprintf(stderr, "Failed to enable video input. Is another application using the card?\n");
         delete delegate;
+        delegate = NULL;
         goto bail;
     }
 
@@ -579,6 +581,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
     if (result != S_OK)
     {
         delete delegate;
+        delegate = NULL;
         goto bail;
 
     }
