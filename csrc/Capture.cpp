@@ -384,7 +384,7 @@ void DeckLinkCaptureDelegate::Stop()
 
 DeckLinkCaptureDelegate::~DeckLinkCaptureDelegate()
 {
-    if(oc)
+    if(oc && oc->pb)
     {
         if(oc->pb->write_flag)
         {
