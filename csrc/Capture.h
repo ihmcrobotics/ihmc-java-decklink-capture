@@ -39,6 +39,8 @@ extern "C" {
 #include "libswscale/swscale.h"
 #include "libavformat/avformat.h"
 }
+#include <boost/thread/tss.hpp>
+#include <boost/thread/mutex.hpp>
 
 static int sws_flags = SWS_BICUBIC;
 

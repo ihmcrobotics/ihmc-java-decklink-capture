@@ -9,7 +9,7 @@
 
 #include <unistd.h>
 #include <sys/syscall.h>
-#include <boost/thread/tss.hpp>
+
 #include <iostream>
 
 /**

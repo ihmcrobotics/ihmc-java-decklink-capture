@@ -42,6 +42,8 @@
 #include "Util.hpp"
 #include "us_ihmc_javadecklink_Capture.h"
 
+
+
 #include <time.h>
 
 
@@ -69,6 +71,7 @@ public:
 };
 
 static boost::thread_specific_ptr<ThreadJNIEnv> envs;
+boost::mutex encoderMutex;
 
 inline JNIEnv* registerDecklinkDelegate(DeckLinkCaptureDelegate* delegate)
 {
@@ -218,6 +221,8 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 
 HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChangedEvents events, IDeckLinkDisplayMode *mode, BMDDetectedVideoInputFormatFlags formatFlags)
 {
+    encoderMutex.lock();
+
     // This only gets called if bmdVideoInputEnableFormatDetection was set
     // when enabling video input
     HRESULT	result;
@@ -229,7 +234,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
     {
         printf("Unsupported input format: RGB444\n");
         env->CallVoidMethod(obj, stop);
-        return S_OK;
+        goto bail;
     }
 
     mode->GetName((const char**)&displayModeName);
@@ -248,7 +253,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
         {
             printf("Cannot change video resolution while capturing. Stopping capture.\n");
             env->CallVoidMethod(obj, stop);
-            return S_OK;
+            goto bail;
         }
 
         codec = avcodec_find_encoder(AV_CODEC_ID_MJPEG);
@@ -256,7 +261,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
         if (!codec) {
             printf("codec not found\n");
             env->CallVoidMethod(obj, stop);
-            return S_OK;
+            goto bail;
         }
 
         video_st = avformat_new_stream(oc, codec);
@@ -264,7 +269,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
         {
             printf("Cannot allocate video stream\n");
             env->CallVoidMethod(obj, stop);
-            return S_OK;
+            goto bail;
 
         }
 
@@ -301,14 +306,14 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
         if (avcodec_open2(c, codec, NULL) < 0) {
             printf("Could not open codec\n");
             env->CallVoidMethod(obj, stop);
-            return S_OK;
+            goto bail;
         }
 
         if(avio_open(&oc->pb, oc->filename, AVIO_FLAG_WRITE) < 0)
         {
             printf("Could not open file\n");
             env->CallVoidMethod(obj, stop);
-            return S_OK;
+            goto bail;
 
         }
 
@@ -318,7 +323,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
         if (ret < 0) {
             printf("could not alloc raw picture buffer\n");
             env->CallVoidMethod(obj, stop);
-            return S_OK;
+            goto bail;
 
         }
         pictureYUV420->format = c->pix_fmt;
@@ -348,7 +353,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
         {
             printf("Failed to switch to new video mode\n");
             env->CallVoidMethod(obj, stop);
-            return S_OK;
+            goto bail;
 
         }
 
@@ -356,6 +361,9 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
     }
 
     std::cout << "Detected new mode " << mode->GetWidth() << "x" << mode->GetHeight() << std::endl;
+
+    bail:
+    encoderMutex.unlock();
 	return S_OK;
 }
 
