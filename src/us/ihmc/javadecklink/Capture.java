@@ -66,9 +66,9 @@ public class Capture
       return -1;
    }
    
-   private void receivedFrameAtHardwareTimeFromNative(long hardwareTime, long pts)
+   private void receivedFrameAtHardwareTimeFromNative(long hardwareTime, long pts, long timeScaleNumerator, long timeScaleDenumerator)
    {
-      captureHandler.receivedFrameAtTime(hardwareTime, pts);
+      captureHandler.receivedFrameAtTime(hardwareTime, pts, timeScaleNumerator, timeScaleDenumerator);
    }
 
    public void startCapture(String filename, int decklink, double quality) throws IOException
@@ -138,10 +138,10 @@ public class Capture
    {
 
       @Override
-      public void receivedFrameAtTime(long hardwareTime, long pts)
+      public void receivedFrameAtTime(long hardwareTime, long pts, long timeScaleNumerator, long timeScaleDenumerator)
       {
          long currentTime = capture.getHardwareTime();
-         System.out.println("Received frame at " + hardwareTime + ", current time: " + currentTime + ", delay: " + (currentTime - hardwareTime) + ",  pts: " + pts);
+         System.out.println("Received frame at " + hardwareTime + ", current time: " + currentTime + ", delay: " + (currentTime - hardwareTime) + ",  pts: " + pts + ", timescale: " + timeScaleNumerator + "/" + timeScaleDenumerator);
          
       }
       public void setCapture(Capture capture)

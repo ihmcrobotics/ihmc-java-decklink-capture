@@ -207,7 +207,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 
 
                     videoFrame->GetHardwareReferenceTimestamp(1000000000, &frameTime, &frameDuration);
-                    env->CallVoidMethod(obj, methodID, frameTime, pts);
+                    env->CallVoidMethod(obj, methodID, frameTime, pts, (jlong) video_st->time_base.num, (jlong) video_st->time_base.den);
                 }
 
 
@@ -492,7 +492,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
     env->ReleaseStringUTFChars(filename, str);
 
     jclass cls = env->GetObjectClass(obj);
-    jmethodID method = env->GetMethodID(cls, "receivedFrameAtHardwareTimeFromNative", "(JJ)V");
+    jmethodID method = env->GetMethodID(cls, "receivedFrameAtHardwareTimeFromNative", "(JJJJ)V");
     jmethodID stop = env->GetMethodID(cls, "stopCaptureFromNative", "()V");
     if(!method)
     {
