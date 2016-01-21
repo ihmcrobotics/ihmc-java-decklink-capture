@@ -50,7 +50,7 @@ public class Capture
             
    }
    
-   public synchronized long getHardwareTime()
+   public long getHardwareTime()
    {
       if(lock.tryLock())
       {
@@ -71,7 +71,7 @@ public class Capture
       captureHandler.receivedFrameAtTime(hardwareTime, pts);
    }
 
-   public synchronized void startCapture(String filename, int decklink, double quality) throws IOException
+   public void startCapture(String filename, int decklink, double quality) throws IOException
    {
       if(!alive)
       {
@@ -93,7 +93,7 @@ public class Capture
       }
    }
 
-   public synchronized void stopCapture() throws IOException
+   public void stopCapture() throws IOException
    {
       if (ptr == 0)
       {
