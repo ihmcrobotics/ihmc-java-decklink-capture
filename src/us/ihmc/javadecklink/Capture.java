@@ -103,19 +103,31 @@ public class Capture
 
    public static void main(String[] args) throws IOException, InterruptedException
    {
-      final Capture capture = new Capture(new CaptureHandler()
-      {
-         
-         @Override
-         public void receivedFrameAtTime(long hardwareTime, long pts)
-         {
-            System.out.println("Received frame at " + hardwareTime + ", pts: " + pts);
-         }
-      });
-
+      CaptureHandlerImpl captureHandlerImpl = new CaptureHandlerImpl();
+      final Capture capture = new Capture(captureHandlerImpl);
+      captureHandlerImpl.setCapture(capture);
       capture.startCapture("aap.mp4", 1, 0.9);
 
       Thread.sleep(5000);
       capture.stopCapture();
+   }
+   
+   private static class CaptureHandlerImpl implements CaptureHandler
+   {
+
+      @Override
+      public void receivedFrameAtTime(long hardwareTime, long pts)
+      {
+         long currentTime = capture.getHardwareTime();
+         System.out.println("Received frame at " + hardwareTime + ", current time: " + currentTime + ", delay: " + (currentTime - hardwareTime) + ",  pts: " + pts);
+         
+      }
+      public void setCapture(Capture capture)
+      {
+         this.capture = capture;
+      }
+      private Capture capture;
+      
+      
    }
 }
