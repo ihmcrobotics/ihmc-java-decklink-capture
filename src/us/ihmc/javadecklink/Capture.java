@@ -1,14 +1,36 @@
 package us.ihmc.javadecklink;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 import us.ihmc.tools.nativelibraries.NativeLibraryLoader;
 
 public class Capture
 {
+   private static final int LIBAV_SUPPORTED_VERSIONS[] = { 54, 56 };
+   
    static
    {
-      NativeLibraryLoader.loadLibrary("us.ihmc.javadecklink.lib", "JavaDecklink");
+      boolean loaded = false;
+
+      for(int version : LIBAV_SUPPORTED_VERSIONS)
+      {
+         try
+         {
+            System.out.println("[INFO] Trying to load JavaDecklink version " + version);
+            NativeLibraryLoader.loadLibrary("us.ihmc.javadecklink.lib", "JavaDecklink" + version);
+            loaded = true;
+            break;
+         }
+         catch(UnsatisfiedLinkError e)
+         {
+            System.err.println("[WARNING] Cannot load JavaDecklink version " + version + ".");
+         }         
+      }
+      if(!loaded)
+      {
+         throw new UnsatisfiedLinkError("[ERROR] Cannot load JavaDecklink library, make sure you have a supported libav version installed. Supported versions are " + Arrays.toString(LIBAV_SUPPORTED_VERSIONS));
+      }
    }
 
    private native long getHardwareTime(long ptr);

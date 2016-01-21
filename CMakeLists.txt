@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 2.8)
 project(javadecklinkapi)
 
 IF(SDK_PATH)
@@ -9,7 +9,6 @@ IF(SDK_PATH)
 ELSE()
 	MESSAGE(FATAL_ERROR "SDK_PATH is not set. Pass in the path to the Decklink SDK with -DSDK_PATH=")
 ENDIF(SDK_PATH)
-
 IF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   SET(CMAKE_INSTALL_PREFIX
     ${CMAKE_SOURCE_DIR}/resources/us/ihmc/javadecklink CACHE PATH "Java Decklink API install prefix" FORCE
