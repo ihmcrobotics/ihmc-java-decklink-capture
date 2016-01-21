@@ -93,6 +93,17 @@ public class Capture
       }
    }
 
+   private void stopCaptureFromNative()
+   {
+      try
+      {
+         stopCapture();
+      }
+      catch (IOException e)
+      {
+      }
+   }
+   
    public void stopCapture() throws IOException
    {
       if (ptr == 0)

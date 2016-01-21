@@ -86,7 +86,7 @@ inline JNIEnv* registerDecklinkDelegate(DeckLinkCaptureDelegate* delegate)
 }
 
 
-DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, double quality, IDeckLink* decklink, IDeckLinkInput* decklinkInput, JavaVM* vm, jobject obj, jmethodID methodID) :
+DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, double quality, IDeckLink* decklink, IDeckLinkInput* decklinkInput, JavaVM* vm, jobject obj, jmethodID methodID, jmethodID stop) :
     vm(vm),
     obj(obj),
     valid(true),
@@ -94,6 +94,7 @@ DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, double qu
     decklink(decklink),
     decklinkInput(decklinkInput),
     methodID(methodID),
+    stop(stop),
     initial_video_pts(AV_NOPTS_VALUE),
     quality(quality)
 {
@@ -109,14 +110,12 @@ DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, double qu
         fprintf(stderr, "AV Format %s not found\n", filename.c_str());
         valid = false;
     }
-
-    oc->oformat->video_codec = AV_CODEC_ID_MJPEG;
-    snprintf(oc->filename, sizeof(oc->filename), "%s", filename.c_str());
-    oc->oformat->audio_codec = AV_CODEC_ID_NONE;
-
-
-
-
+    else
+    {
+        oc->oformat->video_codec = AV_CODEC_ID_MJPEG;
+        snprintf(oc->filename, sizeof(oc->filename), "%s", filename.c_str());
+        oc->oformat->audio_codec = AV_CODEC_ID_NONE;
+    }
 }
 
 ULONG DeckLinkCaptureDelegate::AddRef(void)
@@ -228,8 +227,8 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
     JNIEnv* env = registerDecklinkDelegate(this);
     if (formatFlags & bmdDetectedVideoInputRGB444)
     {
-        throwRuntimeException(env, "Unsupported input format: RGB444");
-        decklinkInput->DisableVideoInput();
+        printf("Unsupported input format: RGB444\n");
+        env->CallVoidMethod(obj, stop);
         return S_OK;
     }
 
@@ -247,24 +246,24 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
 
         if(codec)
         {
-            throwRuntimeException(env, "Cannot change video resolution while capturing. Stopping capture.");
-            decklinkInput->DisableVideoInput();
+            printf("Cannot change video resolution while capturing. Stopping capture.\n");
+            env->CallVoidMethod(obj, stop);
             return S_OK;
         }
 
         codec = avcodec_find_encoder(AV_CODEC_ID_MJPEG);
 
         if (!codec) {
-            throwRuntimeException(env, "codec not found\n");
-            decklinkInput->DisableVideoInput();
+            printf("codec not found\n");
+            env->CallVoidMethod(obj, stop);
             return S_OK;
         }
 
         video_st = avformat_new_stream(oc, codec);
         if(!video_st)
         {
-            throwRuntimeException(env, "Cannot allocate video stream");
-            decklinkInput->DisableVideoInput();
+            printf("Cannot allocate video stream\n");
+            env->CallVoidMethod(obj, stop);
             return S_OK;
 
         }
@@ -300,15 +299,15 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
 
         /* open it */
         if (avcodec_open2(c, codec, NULL) < 0) {
-            throwRuntimeException(env, "Could not open codec");
-            decklinkInput->DisableVideoInput();
+            printf("Could not open codec\n");
+            env->CallVoidMethod(obj, stop);
             return S_OK;
         }
 
         if(avio_open(&oc->pb, oc->filename, AVIO_FLAG_WRITE) < 0)
         {
-            throwRuntimeException(env, "Could not open file");
-            decklinkInput->DisableVideoInput();
+            printf("Could not open file\n");
+            env->CallVoidMethod(obj, stop);
             return S_OK;
 
         }
@@ -317,8 +316,8 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
        int ret = av_image_alloc(pictureYUV420->data, pictureYUV420->linesize, c->width, c->height,
                              c->pix_fmt, 32);
         if (ret < 0) {
-            throwRuntimeException(env, "could not alloc raw picture buffer\n");
-            decklinkInput->DisableVideoInput();
+            printf("could not alloc raw picture buffer\n");
+            env->CallVoidMethod(obj, stop);
             return S_OK;
 
         }
@@ -347,8 +346,8 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
         result = decklinkInput->EnableVideoInput(mode->GetDisplayMode(), pixelFormat, bmdVideoInputFlagDefault | bmdVideoInputEnableFormatDetection);
         if (result != S_OK)
         {
-            throwRuntimeException(env, "Failed to switch to new video mode");
-            decklinkInput->DisableVideoInput();
+            printf("Failed to switch to new video mode\n");
+            env->CallVoidMethod(obj, stop);
             return S_OK;
 
         }
@@ -486,9 +485,15 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
 
     jclass cls = env->GetObjectClass(obj);
     jmethodID method = env->GetMethodID(cls, "receivedFrameAtHardwareTimeFromNative", "(JJ)V");
+    jmethodID stop = env->GetMethodID(cls, "stopCaptureFromNative", "()V");
     if(!method)
     {
         throwRuntimeException(env, "Cannot find method receivedFrameAtHardwareTimeFromNative");
+        goto bail;
+    }
+    if(!stop)
+    {
+        throwRuntimeException(env, "Cannot find method stopCaptureFromNative");
         goto bail;
     }
 
@@ -577,7 +582,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
 	}
 
     // Configure the capture callback
-    delegate = new DeckLinkCaptureDelegate(cfilename, quality, deckLink, g_deckLinkInput, vm, env->NewGlobalRef(obj), method);
+    delegate = new DeckLinkCaptureDelegate(cfilename, quality, deckLink, g_deckLinkInput, vm, env->NewGlobalRef(obj), method, stop);
 
     if(!delegate->valid)
     {
