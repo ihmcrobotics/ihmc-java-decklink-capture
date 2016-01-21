@@ -522,7 +522,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
 	if (result != S_OK)
 		goto bail;
 
-
+/*
     result = deckLink->QueryInterface(IID_IDeckLinkConfiguration,
                                       (void **)&deckLinkConfiguration);
     if (result != S_OK) {
@@ -535,6 +535,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
         printf("Cannot switch to SDI input\n");
         goto bail;
     }
+    */
     result = g_deckLinkInput->GetDisplayModeIterator(&displayModeIterator);
 	if (result != S_OK)
 		goto bail;
