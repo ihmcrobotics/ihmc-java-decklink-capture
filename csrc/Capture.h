@@ -61,6 +61,7 @@ public:
     JavaVM* vm;
     jobject obj;
 
+    bool valid;
 private:
 	int32_t				m_refCount;
 
@@ -84,6 +85,7 @@ private:
     struct SwsContext *img_convert_ctx;
 
     int64_t initial_video_pts;
+
 };
 
 #endif

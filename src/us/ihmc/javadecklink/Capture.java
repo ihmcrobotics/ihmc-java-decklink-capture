@@ -49,13 +49,9 @@ public class Capture
             
    }
    
-   public long getHardwareTime()
+   public synchronized long getHardwareTime()
    {
-      if(!alive)
-      {
-         throw new RuntimeException("This Capture interface has been stopped");
-      }
-      if (ptr == 0)
+      if(!alive || ptr == 0)
       {
          return -1;
       }
@@ -68,7 +64,7 @@ public class Capture
       captureHandler.receivedFrameAtTime(hardwareTime, pts);
    }
 
-   public void startCapture(String filename, int decklink, double quality) throws IOException
+   public synchronized void startCapture(String filename, int decklink, double quality) throws IOException
    {
       if(!alive)
       {
@@ -90,7 +86,7 @@ public class Capture
       }
    }
 
-   public void stopCapture() throws IOException
+   public synchronized void stopCapture() throws IOException
    {
       if (ptr == 0)
       {

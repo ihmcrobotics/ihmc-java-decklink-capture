@@ -89,6 +89,7 @@ inline JNIEnv* registerDecklinkDelegate(DeckLinkCaptureDelegate* delegate)
 DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, double quality, IDeckLink* decklink, IDeckLinkInput* decklinkInput, JavaVM* vm, jobject obj, jmethodID methodID) :
     vm(vm),
     obj(obj),
+    valid(true),
     m_refCount(1),
     decklink(decklink),
     decklinkInput(decklinkInput),
@@ -100,13 +101,13 @@ DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, double qu
     avcodec_register_all();
 
     oc = avformat_alloc_context();
-    oc->oformat = av_guess_format("mp4", NULL, NULL);
+    oc->oformat = av_guess_format(NULL, filename.c_str(), NULL);
 
 
     if(oc->oformat == NULL)
     {
-        fprintf(stderr, "AV Format mp4 not found\n");
-        exit(1);
+        fprintf(stderr, "AV Format %s not found\n", filename.c_str());
+        valid = false;
     }
 
     oc->oformat->video_codec = AV_CODEC_ID_MJPEG;
@@ -578,7 +579,12 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
     // Configure the capture callback
     delegate = new DeckLinkCaptureDelegate(cfilename, quality, deckLink, g_deckLinkInput, vm, env->NewGlobalRef(obj), method);
 
-
+    if(!delegate->valid)
+    {
+        delete delegate;
+        delegate = NULL;
+        goto bail;
+    }
 
 	g_deckLinkInput->SetCallback(delegate);
 
