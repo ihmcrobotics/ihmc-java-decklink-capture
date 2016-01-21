@@ -106,6 +106,10 @@ public class Capture
    
    public void stopCapture() throws IOException
    {
+      if(!alive)
+      {
+         return;  // Already stopped
+      }
       if (ptr == 0)
       {
          throw new IOException("Capture not started");
@@ -114,6 +118,7 @@ public class Capture
       {
          stopCaptureNative(ptr);
          alive = false;
+         ptr = 0;
       }
       lock.unlock();
    }
