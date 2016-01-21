@@ -471,6 +471,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
     HRESULT                                                 result;
 
     IDeckLinkInput*	g_deckLinkInput = NULL;
+    IDeckLinkConfiguration* deckLinkConfiguration = NULL;
 
     int displayModeId;
     int idx = device;
@@ -521,6 +522,19 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
 	if (result != S_OK)
 		goto bail;
 
+
+    result = deckLink->QueryInterface(IID_IDeckLinkConfiguration,
+                                      (void **)&deckLinkConfiguration);
+    if (result != S_OK) {
+        printf("Cannot get configuration\n");
+        goto bail;
+    }
+
+    result = deckLinkConfiguration->SetInt(bmdDeckLinkConfigVideoInputConnection, bmdVideoConnectionSDI);
+    if (result != S_OK) {
+        printf("Cannot switch to SDI input\n");
+        goto bail;
+    }
     result = g_deckLinkInput->GetDisplayModeIterator(&displayModeIterator);
 	if (result != S_OK)
 		goto bail;
@@ -560,7 +574,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
 		goto bail;
 	}
 
-	// Configure the capture callback
+    // Configure the capture callback
     delegate = new DeckLinkCaptureDelegate(cfilename, quality, deckLink, g_deckLinkInput, vm, env->NewGlobalRef(obj), method);
 
 
