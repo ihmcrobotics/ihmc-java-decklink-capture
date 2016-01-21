@@ -2,13 +2,14 @@ package us.ihmc.javadecklink;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.concurrent.locks.ReentrantLock;
 
 import us.ihmc.tools.nativelibraries.NativeLibraryLoader;
 
 public class Capture
 {
    private static final int LIBAV_SUPPORTED_VERSIONS[] = { 54, 56 };
-   
+   private final ReentrantLock lock = new ReentrantLock();
    static
    {
       boolean loaded = false;
@@ -51,12 +52,18 @@ public class Capture
    
    public synchronized long getHardwareTime()
    {
-      if(!alive || ptr == 0)
+      if(lock.tryLock())
       {
-         return -1;
+         if(!alive || ptr == 0)
+         {
+            return -1;
+         }
+         
+         long hardwareTime = getHardwareTime(ptr);
+         lock.unlock();
+         return hardwareTime;
       }
-      
-      return getHardwareTime(ptr);
+      return -1;
    }
    
    private void receivedFrameAtHardwareTimeFromNative(long hardwareTime, long pts)
@@ -92,9 +99,12 @@ public class Capture
       {
          throw new IOException("Capture not started");
       }
-
-      stopCaptureNative(ptr);
-      alive = false;
+      lock.lock();
+      {
+         stopCaptureNative(ptr);
+         alive = false;
+      }
+      lock.unlock();
    }
 
    public static void main(String[] args) throws IOException, InterruptedException
