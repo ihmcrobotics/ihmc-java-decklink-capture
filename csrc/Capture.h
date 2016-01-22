@@ -60,32 +60,32 @@ public:
     virtual ~DeckLinkCaptureDelegate();
 
     virtual void Stop();
-    JavaVM* vm;
-    jobject obj;
+    JavaVM* vm = NULL;
+    jobject obj = NULL;
 
     bool valid;
 private:
 	int32_t				m_refCount;
 
-    IDeckLink* decklink;
-    IDeckLinkInput* decklinkInput;
+    IDeckLink* decklink = NULL;
+    IDeckLinkInput* decklinkInput = NULL;
 
 
     jmethodID methodID;
     jmethodID stop;
     int quality;
 
-    AVCodec *codec;
+    AVCodec *codec = NULL;
     AVCodecContext *c= NULL;
     AVPacket pkt;
 
-    AVFrame *pictureUYVY;
-    AVFrame *pictureYUV420;
+    AVFrame *pictureUYVY = NULL;
+    AVFrame *pictureYUV420 = NULL;
 
-    AVFormatContext *oc;
-    AVStream *video_st;
+    AVFormatContext *oc = NULL;
+    AVStream *video_st = NULL;
 
-    struct SwsContext *img_convert_ctx;
+    struct SwsContext *img_convert_ctx = NULL;
 
     int64_t initial_video_pts;
 
