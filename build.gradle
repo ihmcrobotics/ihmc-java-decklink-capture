@@ -6,7 +6,6 @@ sourceCompatibility = 1.7
 targetCompatibility = 1.7
 version = '0.1.6'
 
-
 mainClassName = "us.ihmc.javadecklink.Capture"
 
 repositories {
@@ -71,7 +70,7 @@ publishing {
 		mavenJava(MavenPublication) {
 
 			groupId 'us.ihmc'
-			artifactId 'JavaDecklinkAPI'
+			artifactId project.name
 			version "$version"
 			from components.java
 			
@@ -79,7 +78,7 @@ publishing {
                 asNode().children().last() + {
                     resolveStrategy = Closure.DELEGATE_FIRST
                     name 'IHMCRosControl'
-                    url 'https://stash.ihmc.us/projects/IHD/repos/java-decklink-api/'
+                    url 'https://github.com/ihmcrobotics/ihmc-java-decklink-capture'
                     licenses {
                         license {
                             name 'The Apache Software License, Version 2.0'
