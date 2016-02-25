@@ -8,11 +8,11 @@ import us.ihmc.tools.nativelibraries.NativeLibraryLoader;
 
 public class Capture
 {
+   static private boolean loaded = false;
    private static final int LIBAV_SUPPORTED_VERSIONS[] = { 54, 56 };
    private final ReentrantLock lock = new ReentrantLock();
    static
    {
-      boolean loaded = false;
 
       for(int version : LIBAV_SUPPORTED_VERSIONS)
       {
@@ -28,10 +28,6 @@ public class Capture
             System.err.println("[WARNING] Cannot load JavaDecklink version " + version + ".");
          }         
       }
-      if(!loaded)
-      {
-         throw new UnsatisfiedLinkError("[ERROR] Cannot load JavaDecklink library, make sure you have a supported libav version installed. Supported versions are " + Arrays.toString(LIBAV_SUPPORTED_VERSIONS));
-      }
    }
 
    private native long getHardwareTime(long ptr);
@@ -46,8 +42,12 @@ public class Capture
    
    public Capture(CaptureHandler captureHandler)
    {
+      if(!loaded)
+      {
+         throw new UnsatisfiedLinkError("[ERROR] Cannot load JavaDecklink library, make sure you have a supported libav version installed. Supported versions are " + Arrays.toString(LIBAV_SUPPORTED_VERSIONS));
+      }
+
       this.captureHandler = captureHandler;
-            
    }
    
    public long getHardwareTime()
