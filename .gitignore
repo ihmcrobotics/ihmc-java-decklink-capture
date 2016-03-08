@@ -6,3 +6,5 @@ bin
 classes
 .settings
 .project
+*.iml
+.idea
