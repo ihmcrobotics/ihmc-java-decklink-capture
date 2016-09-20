@@ -4,5 +4,5 @@ requests. They are easier to review and have a greater chance of being processed
 prior to merging, and passes after merging.
 
 <!-- If this pull request resolves any open issues, provide a link: -->
-Resolves [issue#](https://github.com/ihmcrobotics/ihmc-open-robotics-software/issues).
+Resolves [issue#](https://github.com/ihmcrobotics/ihmc-java-decklink-capture/issues).
 
