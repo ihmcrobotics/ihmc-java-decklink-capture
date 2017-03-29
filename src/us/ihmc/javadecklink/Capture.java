@@ -9,12 +9,12 @@ import us.ihmc.tools.nativelibraries.NativeLibraryLoader;
 public class Capture
 {
    static private boolean loaded = false;
-   private static final int LIBAV_SUPPORTED_VERSIONS[] = { 54, 56 };
+   private static final String LIBAV_SUPPORTED_VERSIONS[] = { "54", "56", "-avcodec56-swscale3-avformat56-ffmpeg" };
    private final ReentrantLock lock = new ReentrantLock();
    static
    {
 
-      for(int version : LIBAV_SUPPORTED_VERSIONS)
+      for(String version : LIBAV_SUPPORTED_VERSIONS)
       {
          try
          {

@@ -1,14 +1,24 @@
-plugins {
-   id 'us.ihmc.gradle.ihmc-build' version '0.0.9'
+buildscript {
+  repositories {
+    maven {
+      url "https://plugins.gradle.org/m2/"
+    }
+  }
+  dependencies {
+    classpath "gradle.plugin.us.ihmc.gradle:ihmc-build:0.0.19"
+    classpath "org.hidetake:gradle-ssh-plugin:2.1.1"
+  }
 }
+apply plugin: "us.ihmc.gradle.ihmc-build"
 
 apply plugin: 'java'
 apply plugin: 'maven-publish'
 apply plugin: 'application'
 
+
 sourceCompatibility = 1.7
 targetCompatibility = 1.7
-version = '0.1.7'
+version = '0.1.8'
 
 project.ext.fullVersion = version
 project.ext.vcsUrl = "https://github.com/ihmcrobotics/ihmc-hierarchical-kinematics"
@@ -27,7 +37,7 @@ repositories {
 }
 
 task wrapper(type: Wrapper) {
-    gradleVersion = '2.10'
+    gradleVersion = '3.2.1'
 }
 
 dependencies
