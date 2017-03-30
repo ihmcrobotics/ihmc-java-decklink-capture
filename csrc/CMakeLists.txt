@@ -20,9 +20,13 @@ IF("${SWSCALE_MAJOR}" VERSION_GREATER "2")
 ELSE()
 	SET(LIBNAME JavaDecklink${LIBAV_MAJOR})
 ENDIF()
-add_library(${LIBNAME} SHARED Capture.cpp "${SDK_PATH}/include/DeckLinkAPIDispatch.cpp")
+
+SET(SDK_LIB "${SDK_PATH}/include/DeckLinkAPIDispatch.cpp")
+set_source_files_properties("${SDK_LIB}" PROPERTIES GENERATED TRUE)
+add_library(${LIBNAME} SHARED Capture.cpp "${SDK_LIB}")
 
 target_link_libraries(${LIBNAME} m dl pthread ${AVLIB_LIBRARIES} ${Boost_LIBRARIES})
+add_dependencies(${LIBNAME} DecklinkSDK)
 
 
 

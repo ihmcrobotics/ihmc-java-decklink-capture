@@ -1,14 +1,9 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.1)
 project(javadecklinkapi)
 
-IF(SDK_PATH)
-	IF(NOT EXISTS "${SDK_PATH}/include/DeckLinkAPI.h")
-		MESSAGE(FATAL_ERROR "${SDK_PATH}/include/DeckLinkAPI.h does not exists. Pass in a valid non-relative SDK_PATH with -DSDK_PATH=")
-	ENDIF()
-	MESSAGE("Decklink SDK_PATH is ${SDK_PATH}")
-ELSE()
-	MESSAGE(FATAL_ERROR "SDK_PATH is not set. Pass in the path to the Decklink SDK with -DSDK_PATH=")
-ENDIF(SDK_PATH)
+SET(DECKLINK_VERSION "10.8.5")
+
+
 IF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   SET(CMAKE_INSTALL_PREFIX
     ${CMAKE_SOURCE_DIR}/resources/us/ihmc/javadecklink CACHE PATH "Java Decklink API install prefix" FORCE
@@ -16,6 +11,20 @@ IF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 ENDIF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
+
+SET(SDK_PREFIX "${PROJECT_BINARY_DIR}/blackmagic")
+SET(SDK_PATH "${SDK_PREFIX}/Linux")
+include(ExternalProject)
+ExternalProject_Add(DecklinkSDK
+	    SOURCE_DIR "${SDK_PREFIX}"
+	    STAMP_DIR "${PROJECT_BINARY_DIR}/blackmagic-stamp"
+		URL "${PROJECT_SOURCE_DIR}/Blackmagic_DeckLink_SDK_${DECKLINK_VERSION}.zip"
+		CONFIGURE_COMMAND ""
+		BUILD_COMMAND ""
+		INSTALL_COMMAND ""
+	    
+)	    
+
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(AVLIB REQUIRED libswscale libavcodec libavformat)
