@@ -82,7 +82,7 @@ public class Capture
     */
    public void setOption(String option, String value)
    {
-      
+      setOption(captureSettingsPtr, option, value);
    }
    
    
@@ -125,7 +125,7 @@ public class Capture
       captureHandler.receivedFrameAtTime(hardwareTime, pts, timeScaleNumerator, timeScaleDenumerator);
    }
 
-   public void startCapture(String filename, int decklink, double quality) throws IOException
+   public void startCapture(String filename, int decklink) throws IOException
    {
       if(!alive)
       {
@@ -179,12 +179,11 @@ public class Capture
    {
       CaptureHandlerImpl captureHandlerImpl = new CaptureHandlerImpl();
       final Capture capture = new Capture(captureHandlerImpl, CodecID.AV_CODEC_ID_H264);
-      
       capture.setOption("preset", "medium");
       capture.setOption("g", "1");
       
       captureHandlerImpl.setCapture(capture);
-      capture.startCapture("aap.mp4", 1, 0.9);
+      capture.startCapture("aap.mp4", 1);
 
       Thread.sleep(5000);
       capture.stopCapture();
