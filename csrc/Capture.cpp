@@ -487,6 +487,13 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_createCaptureSettings
 	
 	return (jlong) new DecklinkCaptureSettings(codecid, -1);  	
 }
+
+JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_setQuality
+  (JNIEnv *, jobject, jlong ptr, jint quality)
+{
+	DecklinkCaptureSettings* settings = (DecklinkCaptureSettings*) ptr;
+	settings->quality = quality;
+}
   
 JNIEXPORT void JNICALL Java_us_ihmc_javadecklink_Capture_setOption
   (JNIEnv *env, jobject, jlong ptr, jstring option, jstring value)
