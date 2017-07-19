@@ -34,7 +34,6 @@
 #include <csignal>
 #include <jni.h>
 #include <string>
-#include <libavutil/opt.h> 
 
 
 
