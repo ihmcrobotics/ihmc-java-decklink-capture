@@ -1,3 +1,5 @@
+https://ffmpeg.org/ffmpeg-codecs.html#Options-25
+
 b (bitrate)
 Set bitrate in bits/s. Note that FFmpeg’s b option is expressed in bits/s, while x264’s bitrate is in kilobits/s.
 

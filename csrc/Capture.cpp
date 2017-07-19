@@ -280,6 +280,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
 
 	    for (auto it = settings->options.begin() ; it != settings->options.end(); ++it)
 		{
+			printf("Setting %s to %s\n", it->first.c_str(), it->second.c_str());
 			int error = av_opt_set(c->priv_data, it->first.c_str(), it->second.c_str(), 0);
 			if(error)  	
 			{
