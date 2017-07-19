@@ -178,12 +178,20 @@ public class Capture
    public static void main(String[] args) throws IOException, InterruptedException
    {
       CaptureHandlerImpl captureHandlerImpl = new CaptureHandlerImpl();
-      final Capture capture = new Capture(captureHandlerImpl, CodecID.AV_CODEC_ID_H264);
-//	capture.setMJPEGQuality(0.9);
-      capture.setOption("preset", "medium");
-      capture.setOption("g", "1");
-      capture.setOption("crf", "25");
-      
+      final Capture capture;
+	if(args.length > 0 && args[0].contains("264"))
+	{
+		capture = new Capture(captureHandlerImpl, CodecID.AV_CODEC_ID_H264);
+	//	capture.setMJPEGQuality(0.9);
+	      capture.setOption("preset", "medium");
+	      capture.setOption("g", "1");
+	      capture.setOption("crf", "25");
+ 	}	
+	else
+	{
+		capture = new Capture(captureHandlerImpl, CodecID.AV_CODEC_ID_MJPEG);
+		capture.setMJPEGQuality(0.9);
+	}     
       captureHandlerImpl.setCapture(capture);
       capture.startCapture("aap.mp4", 1);
 
