@@ -42,12 +42,31 @@ extern "C" {
 #include <boost/thread/tss.hpp>
 #include <boost/thread/mutex.hpp>
 
+#include <vector>
+#include <utility>
+
 static int sws_flags = SWS_BICUBIC;
+
+class DecklinkCaptureSettings 
+{
+	public:	
+		std::vector<std::pair<std::string, std::string>> options;
+		AVCodecID codec;
+		int quality;
+		
+		DecklinkCaptureSettings(AVCodecID codec, int quality) :
+			codec(codec), quality(quality)
+		{
+			
+		};
+		
+};
+
 
 class DeckLinkCaptureDelegate : public IDeckLinkInputCallback
 {
 public:
-    DeckLinkCaptureDelegate(std::string filename, double quality, IDeckLink*, IDeckLinkInput*decklinkInput, JavaVM* vm, jobject obj, jmethodID methodID, jmethodID stop);
+    DeckLinkCaptureDelegate(std::string filename, DecklinkCaptureSettings* settings, IDeckLink*, IDeckLinkInput*decklinkInput, JavaVM* vm, jobject obj, jmethodID methodID, jmethodID stop);
 
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, LPVOID *ppv) { return E_NOINTERFACE; }
 	virtual ULONG STDMETHODCALLTYPE AddRef(void);
@@ -73,7 +92,7 @@ private:
 
     jmethodID methodID;
     jmethodID stop;
-    int quality;
+    DecklinkCaptureSettings* settings;
 
     AVCodec *codec = NULL;
     AVCodecContext *c= NULL;

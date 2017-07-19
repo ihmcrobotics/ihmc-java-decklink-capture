@@ -14,9 +14,7 @@ apt-get install libavformat-ffmpeg56 libavcodec-ffmpeg56 libswscale-ffmpeg3
 
 Native libraries are provided for
 - Ubuntu 16.04
-- Ubuntu 14.04 
-- Ubuntu 12.04
-- More specifically, libraries are compiled for libavformat 5.4, libavformat 5.6 and libavformat 5.6-ffmpeg with swscale 2, swscale 2 and swscale 3-ffmpeg respectively.
+- Ubuntu 16.10
 
 Libraries are tested one by one in the runtime till one loads. 
 

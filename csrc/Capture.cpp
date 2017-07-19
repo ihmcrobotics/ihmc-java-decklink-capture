@@ -34,6 +34,7 @@
 #include <csignal>
 #include <jni.h>
 #include <string>
+#include <libavutil/opt.h> 
 
 
 
@@ -89,7 +90,7 @@ inline JNIEnv* registerDecklinkDelegate(DeckLinkCaptureDelegate* delegate)
 }
 
 
-DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, double quality, IDeckLink* decklink, IDeckLinkInput* decklinkInput, JavaVM* vm, jobject obj, jmethodID methodID, jmethodID stop) :
+DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, DecklinkCaptureSettings* settings, IDeckLink* decklink, IDeckLinkInput* decklinkInput, JavaVM* vm, jobject obj, jmethodID methodID, jmethodID stop) :
     vm(vm),
     obj(obj),
     valid(true),
@@ -99,7 +100,7 @@ DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, double qu
     methodID(methodID),
     stop(stop),
     initial_video_pts(AV_NOPTS_VALUE),
-    quality(quality)
+    settings(settings)
 {
     av_register_all();
     avcodec_register_all();
@@ -115,7 +116,7 @@ DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, double qu
     }
     else
     {
-        oc->oformat->video_codec = AV_CODEC_ID_MJPEG;
+        oc->oformat->video_codec = settings->codec;
         snprintf(oc->filename, sizeof(oc->filename), "%s", filename.c_str());
         oc->oformat->audio_codec = AV_CODEC_ID_NONE;
     }
@@ -194,7 +195,10 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
                 sws_scale(img_convert_ctx, pictureUYVY->data, pictureUYVY->linesize, 0, c->height, pictureYUV420->data, pictureYUV420->linesize);
 
 
-                pictureYUV420->quality = quality;
+				if(settings->quality >= 0)
+				{
+	                pictureYUV420->quality = settings->quality;				
+				}
                 /* encode the image */
                 int got_output;
                 int ret = avcodec_encode_video2(c, &pkt, pictureYUV420, &got_output);
@@ -256,7 +260,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
             goto bail;
         }
 
-        codec = avcodec_find_encoder(AV_CODEC_ID_MJPEG);
+        codec = avcodec_find_encoder(settings->codec);
 
         if (!codec) {
             printf("codec not found\n");
@@ -275,6 +279,17 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
 
         c = video_st->codec;
 
+	    for (auto it = settings->options.begin() ; it != settings->options.end(); ++it)
+		{
+			int error = av_opt_set(c->priv_data, it->first.c_str(), it->second.c_str(), 0);
+			if(error)  	
+			{
+				printf("Cannot set %s to %s\n", it->first.c_str(), it->second.c_str());
+	            env->CallVoidMethod(obj, stop);
+	            goto bail;
+			}
+			
+		}
 
 
 
@@ -299,8 +314,11 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
             c->flags |= CODEC_FLAG_GLOBAL_HEADER;
         }
 
-        c->flags |= CODEC_FLAG_QSCALE;
-        c->qmin = c->qmax = quality;
+		if(settings->quality >= 0)
+		{
+        	c->flags |= CODEC_FLAG_QSCALE;
+        	c->qmin = c->qmax = settings->quality;
+		}
 
         /* open it */
         if (avcodec_open2(c, codec, NULL) < 0) {
@@ -317,9 +335,9 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
 
         }
 
-        pictureYUV420 = avcodec_alloc_frame();
-       int ret = av_image_alloc(pictureYUV420->data, pictureYUV420->linesize, c->width, c->height,
-                             c->pix_fmt, 32);
+        //pictureYUV420 = avcodec_alloc_frame();
+        pictureYUV420 = av_frame_alloc();
+       int ret = av_image_alloc(pictureYUV420->data, pictureYUV420->linesize, c->width, c->height, c->pix_fmt, 32);
         if (ret < 0) {
             printf("could not alloc raw picture buffer\n");
             env->CallVoidMethod(obj, stop);
@@ -331,7 +349,8 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
         pictureYUV420->height = c->height;
 
 
-        pictureUYVY = avcodec_alloc_frame();
+        //pictureUYVY = avcodec_alloc_frame();
+        pictureUYVY = av_frame_alloc();
         pictureUYVY->width = c->width;
         pictureUYVY->height = c->height;
         pictureUYVY->format = AV_PIX_FMT_UYVY422;
@@ -410,12 +429,14 @@ DeckLinkCaptureDelegate::~DeckLinkCaptureDelegate()
     if(pictureYUV420 != NULL)
     {
         av_freep(&pictureYUV420->data[0]);
-        avcodec_free_frame(&pictureYUV420);
+        //avcodec_free_frame(&pictureYUV420);
+        av_frame_free(&pictureYUV420);
     }
 
     if(pictureUYVY != NULL)
     {
-        avcodec_free_frame(&pictureUYVY);
+//         avcodec_free_frame(&pictureUYVY);
+        av_frame_free(&pictureUYVY);
     }
 
 
@@ -446,6 +467,46 @@ DeckLinkCaptureDelegate::~DeckLinkCaptureDelegate()
     }
 }
 
+JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_createCaptureSettings
+  (JNIEnv *env, jobject, jint codec)
+{
+	AVCodecID codecid;
+	if(codec == 1)
+	{
+		codecid = AV_CODEC_ID_MJPEG;	
+	}
+	else if(codec == 2)
+	{
+		codecid = AV_CODEC_ID_H264;
+	}
+	else 
+	{
+        throwRuntimeException(env, "Codec ID invalid");
+        return 0;
+	}
+	
+	return (jlong) new DecklinkCaptureSettings(codecid, -1);  	
+}
+  
+JNIEXPORT void JNICALL Java_us_ihmc_javadecklink_Capture_setOption
+  (JNIEnv *env, jobject, jlong ptr, jstring option, jstring value)
+{
+    const char* coption = env->GetStringUTFChars(option,0);
+    std::string cppoption(coption);
+    env->ReleaseStringUTFChars(option, coption);
+
+    const char* cvalue = env->GetStringUTFChars(value,0);
+    std::string cppvalue(cvalue);
+    env->ReleaseStringUTFChars(value, cvalue);
+    
+
+
+	DecklinkCaptureSettings* settings = (DecklinkCaptureSettings*) ptr;
+	settings->options.push_back(std::make_pair(cppoption, cppvalue));
+}
+
+
+
 
 JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_getHardwareTime
   (JNIEnv *, jobject, jlong ptr)
@@ -463,8 +524,11 @@ JNIEXPORT void JNICALL Java_us_ihmc_javadecklink_Capture_stopCaptureNative
 
 
 JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
-  (JNIEnv *env, jobject obj, jstring filename, jint device, jint quality)
+  (JNIEnv *env, jobject obj, jstring filename, jint device, jlong settingsPtr)
 {
+
+	DecklinkCaptureSettings* settings = (DecklinkCaptureSettings*) settingsPtr;
+
 
 	IDeckLinkIterator*				deckLinkIterator = NULL;
 	IDeckLink*						deckLink = NULL;
@@ -590,7 +654,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
 	}
 
     // Configure the capture callback
-    delegate = new DeckLinkCaptureDelegate(cfilename, quality, deckLink, g_deckLinkInput, vm, env->NewGlobalRef(obj), method, stop);
+    delegate = new DeckLinkCaptureDelegate(cfilename, settings, deckLink, g_deckLinkInput, vm, env->NewGlobalRef(obj), method, stop);
 
     if(!delegate->valid)
     {

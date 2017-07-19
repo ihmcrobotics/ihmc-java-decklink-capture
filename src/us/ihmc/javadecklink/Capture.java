@@ -8,8 +8,22 @@ import us.ihmc.tools.nativelibraries.NativeLibraryLoader;
 
 public class Capture
 {
+   public enum CodecID 
+   {
+      AV_CODEC_ID_MJPEG(1),
+      AV_CODEC_ID_H264(2);
+    
+      private int id;
+      private CodecID(int id)
+      {
+         this.id = id;
+      }
+   }
+   
+   
+   
    static private boolean loaded = false;
-   private static final String LIBAV_SUPPORTED_VERSIONS[] = { "54", "56", "-avcodec56-swscale3-avformat56-ffmpeg" };
+   private static final String LIBAV_SUPPORTED_VERSIONS[] = { "-avcodec56-swscale3-avformat56-ffmpeg", "-avcodec57-swscale4-avformat57" };
    private final ReentrantLock lock = new ReentrantLock();
    static
    {
@@ -31,23 +45,63 @@ public class Capture
    }
 
    private native long getHardwareTime(long ptr);
-   private native long startCaptureNative(String filename, int decklink, int quality);
+   private native long startCaptureNative(String filename, int decklink, long captureSettings);
    private native void stopCaptureNative(long ptr);
 
-   private final CaptureHandler captureHandler;
+   private native long createCaptureSettings(int codec);
+   private native long setQuality(long captureSettings, int quality);
+   private native void setOption(long captureSettings, String option, String value);
    
+   
+   private final CodecID codec;
+   private final CaptureHandler captureHandler;
+   private final long captureSettingsPtr;
    private long ptr = 0;   
    private boolean alive = true;
 
    
-   public Capture(CaptureHandler captureHandler)
+   public Capture(CaptureHandler captureHandler, CodecID codec)
    {
       if(!loaded)
       {
          throw new UnsatisfiedLinkError("[ERROR] Cannot load JavaDecklink library, make sure you have a supported libav version installed. Supported versions are " + Arrays.toString(LIBAV_SUPPORTED_VERSIONS));
       }
 
+      this.codec = codec;
       this.captureHandler = captureHandler;
+      this.captureSettingsPtr = createCaptureSettings(codec.id);
+      
+      
+   }
+   
+   
+   /**
+    * 
+    * @param option
+    * @param value
+    */
+   public void setOption(String option, String value)
+   {
+      
+   }
+   
+   
+   public void setMJPEGQuality(double quality)
+   {
+      quality = Math.min(1, Math.max(quality, 0));
+      
+      int codecQuality;
+      switch(codec)
+      {
+      case AV_CODEC_ID_H264:
+         throw new RuntimeException("Quality settings not supported");
+      case AV_CODEC_ID_MJPEG:
+         codecQuality = 2 + ((int)((1.0 - quality) * 30));         
+         break;
+      default: throw new RuntimeException();
+      }
+      
+      setQuality(captureSettingsPtr, codecQuality);
    }
    
    public long getHardwareTime()
@@ -82,11 +136,9 @@ public class Capture
          throw new IOException("Capture already started");
       }
       
-      quality = Math.min(1, Math.max(quality, 0));
       
-      int mjpegQuality = 2 + ((int)((1.0 - quality) * 30));
       
-      ptr = startCaptureNative(filename, decklink, mjpegQuality);
+      ptr = startCaptureNative(filename, decklink, captureSettingsPtr);
       if (ptr == 0)
       {
          throw new IOException("Cannot open capture card");
@@ -126,7 +178,11 @@ public class Capture
    public static void main(String[] args) throws IOException, InterruptedException
    {
       CaptureHandlerImpl captureHandlerImpl = new CaptureHandlerImpl();
-      final Capture capture = new Capture(captureHandlerImpl);
+      final Capture capture = new Capture(captureHandlerImpl, CodecID.AV_CODEC_ID_H264);
+      
+      capture.setOption("preset", "medium");
+      capture.setOption("g", "1");
+      
       captureHandlerImpl.setCapture(capture);
       capture.startCapture("aap.mp4", 1, 0.9);
 

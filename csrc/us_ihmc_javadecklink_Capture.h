@@ -18,10 +18,10 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_getHardwareTime
 /*
  * Class:     us_ihmc_javadecklink_Capture
  * Method:    startCaptureNative
- * Signature: (Ljava/lang/String;ID)J
+ * Signature: (Ljava/lang/String;IJ)J
  */
 JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
-  (JNIEnv *, jobject, jstring, jint, jint);
+  (JNIEnv *, jobject, jstring, jint, jlong);
 
 /*
  * Class:     us_ihmc_javadecklink_Capture
@@ -30,6 +30,30 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
  */
 JNIEXPORT void JNICALL Java_us_ihmc_javadecklink_Capture_stopCaptureNative
   (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     us_ihmc_javadecklink_Capture
+ * Method:    createCaptureSettings
+ * Signature: (I)J
+ */
+JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_createCaptureSettings
+  (JNIEnv *, jobject, jint);
+
+/*
+ * Class:     us_ihmc_javadecklink_Capture
+ * Method:    setQuality
+ * Signature: (JI)J
+ */
+JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_setQuality
+  (JNIEnv *, jobject, jlong, jint);
+
+/*
+ * Class:     us_ihmc_javadecklink_Capture
+ * Method:    setOption
+ * Signature: (JLjava/lang/String;Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_us_ihmc_javadecklink_Capture_setOption
+  (JNIEnv *, jobject, jlong, jstring, jstring);
 
 #ifdef __cplusplus
 }
