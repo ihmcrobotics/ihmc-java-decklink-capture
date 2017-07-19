@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.1)
 project(javadecklinkapi)
 
 SET(DECKLINK_VERSION "10.8.5")
+set (CMAKE_CXX_STANDARD 11)
+
 
 
 IF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
@@ -27,7 +29,7 @@ ExternalProject_Add(DecklinkSDK
 
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(AVLIB REQUIRED libswscale libavcodec libavformat)
+pkg_check_modules(AVLIB REQUIRED libswscale libavcodec libavformat libavutil)
 
 find_package(Boost COMPONENTS thread)
 

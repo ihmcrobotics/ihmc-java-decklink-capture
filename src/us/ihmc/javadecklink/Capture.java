@@ -179,8 +179,10 @@ public class Capture
    {
       CaptureHandlerImpl captureHandlerImpl = new CaptureHandlerImpl();
       final Capture capture = new Capture(captureHandlerImpl, CodecID.AV_CODEC_ID_H264);
+//	capture.setMJPEGQuality(0.9);
       capture.setOption("preset", "medium");
       capture.setOption("g", "1");
+      capture.setOption("crf", "25");
       
       captureHandlerImpl.setCapture(capture);
       capture.startCapture("aap.mp4", 1);
@@ -205,6 +207,5 @@ public class Capture
       }
       private Capture capture;
       
-      
-   }
+   }   
 }

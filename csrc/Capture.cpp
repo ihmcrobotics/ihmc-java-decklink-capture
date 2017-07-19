@@ -259,7 +259,9 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
             goto bail;
         }
 
+	
         codec = avcodec_find_encoder(settings->codec);
+	printf("Using encoder %s\n", codec->name);
 
         if (!codec) {
             printf("codec not found\n");
@@ -281,7 +283,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
 	    for (auto it = settings->options.begin() ; it != settings->options.end(); ++it)
 		{
 			printf("Setting %s to %s\n", it->first.c_str(), it->second.c_str());
-			int error = av_opt_set(c->priv_data, it->first.c_str(), it->second.c_str(), 0);
+			int error = av_opt_set(c, it->first.c_str(), it->second.c_str(), AV_OPT_SEARCH_CHILDREN);
 			if(error)  	
 			{
 				printf("Cannot set %s to %s\n", it->first.c_str(), it->second.c_str());
