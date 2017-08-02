@@ -14,6 +14,7 @@ apply plugin: "us.ihmc.gradle.ihmc-build"
 apply plugin: 'java'
 apply plugin: 'maven-publish'
 apply plugin: 'application'
+apply plugin: "org.hidetake.ssh"
 
 
 sourceCompatibility = 1.7
@@ -26,7 +27,7 @@ project.ext.licenseURL = "http://www.apache.org/licenses/LICENSE-2.0.txt"
 project.ext.licenseName = "Apache License, Version 2.0"
 project.ext.bintrayLicenseName = "Apache-2.0"
 
-mainClassName = "us.ihmc.javadecklink.Capture"
+mainClassName = "us.ihmc.javadecklink.Stream"
 
 repositories {
   jcenter()
@@ -45,6 +46,7 @@ dependencies
     testCompile group: 'junit', name: 'junit', version: '4.11'
 
     compile group: 'us.ihmc', name: 'IHMCNativeLibraryLoader', version: '1.0'
+   compile group: 'com.martiansoftware', name: 'jsap', version: '2.1'    
 }
 
 
@@ -105,6 +107,40 @@ publishing {
 		}
 	}
 }
+
+task captureTarget << {
+   def deployLoggerUserValue = project.hasProperty("deployLoggerUser") ? project.deployLoggerUser : "invalid"
+   def deployLoggerPasswordValue = project.hasProperty("deployLoggerPassword") ? project.deployLoggerPassword : "invalid"
+   def deployLoggerHostValue = project.hasProperty("deployLoggerHost") ? project.deployLoggerHost : "invalid"
+
+   remotes.create('captureTarget') {
+      host = deployLoggerHostValue
+      user = deployLoggerUserValue
+      password = deployLoggerPasswordValue
+      knownHosts = allowAnyHosts
+   }
+}
+
+task deploy(dependsOn: [distTar, captureTarget]) << {
+   ssh.run {
+      session(remotes.captureTarget) {
+         project.logger.lifecycle("Copying java decklink capture to remote")
+         def distTarFile = distTar.outputs.files.singleFile
+         put from: distTarFile, into: "."
+
+         project.logger.lifecycle("Untarring distribution on remote host")
+         execute "tar xf ./${distTarFile.name}"
+         project.logger.lifecycle("Removing tarball from remote host")
+         execute "rm -f ./${distTarFile.name}"
+         project.logger.lifecycle("Removing old version")
+         execute "rm -rf Capture"
+         project.logger.lifecycle("Moving Java Declink Capture distribution in to place")
+         execute "mv ./${distTarFile.name.replace(".tar", "")} Capture"
+         project.logger.lifecycle("Capture deployment to remote host complete!")
+      }
+   }
+}
+
 
 def labels = ['ihmc', 'robotics', 'java', 'video', 'decklink']
 ihmc.configureForIHMCOpenSourceBintrayPublish(false, "mavenJava", "maven-release", labels)

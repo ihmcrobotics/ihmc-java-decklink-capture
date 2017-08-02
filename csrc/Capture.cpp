@@ -89,7 +89,7 @@ inline JNIEnv* registerDecklinkDelegate(DeckLinkCaptureDelegate* delegate)
 }
 
 
-DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, DecklinkCaptureSettings* settings, IDeckLink* decklink, IDeckLinkInput* decklinkInput, JavaVM* vm, jobject obj, jmethodID methodID, jmethodID stop) :
+DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, std::string format, DecklinkCaptureSettings* settings, IDeckLink* decklink, IDeckLinkInput* decklinkInput, JavaVM* vm, jobject obj, jmethodID methodID, jmethodID stop) :
     vm(vm),
     obj(obj),
     valid(true),
@@ -105,12 +105,21 @@ DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, DecklinkC
     avcodec_register_all();
 
     oc = avformat_alloc_context();
-    oc->oformat = av_guess_format(NULL, filename.c_str(), NULL);
+    
+    if(format.empty())
+    {
+    	oc->oformat = av_guess_format(NULL, filename.c_str(), NULL);
+	}
+	else
+	{
+		oc->oformat = av_guess_format(format.c_str(), NULL, NULL);
+	}
+    
 
 
     if(oc->oformat == NULL)
     {
-        fprintf(stderr, "AV Format %s not found\n", filename.c_str());
+        fprintf(stderr, "AV Format %s for %s not found\n", format.c_str(), filename.c_str());
         valid = false;
     }
     else
@@ -533,7 +542,7 @@ JNIEXPORT void JNICALL Java_us_ihmc_javadecklink_Capture_stopCaptureNative
 
 
 JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
-  (JNIEnv *env, jobject obj, jstring filename, jint device, jlong settingsPtr)
+  (JNIEnv *env, jobject obj, jstring filename, jstring jformat, jint device, jlong settingsPtr)
 {
 
 	DecklinkCaptureSettings* settings = (DecklinkCaptureSettings*) settingsPtr;
@@ -563,6 +572,19 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
     const char* str = env->GetStringUTFChars(filename,0);
     std::string cfilename(str);
     env->ReleaseStringUTFChars(filename, str);
+    
+    
+    std::string format;
+    if(jformat != NULL)
+    {
+	    const char* formatin = env->GetStringUTFChars(jformat,0);
+		format = formatin;
+		env->ReleaseStringUTFChars(jformat, formatin);
+    }
+    else
+    {
+    	format.clear();
+    }
 
     jclass cls = env->GetObjectClass(obj);
     jmethodID method = env->GetMethodID(cls, "receivedFrameAtHardwareTimeFromNative", "(JJJJ)V");
@@ -663,7 +685,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
 	}
 
     // Configure the capture callback
-    delegate = new DeckLinkCaptureDelegate(cfilename, settings, deckLink, g_deckLinkInput, vm, env->NewGlobalRef(obj), method, stop);
+    delegate = new DeckLinkCaptureDelegate(cfilename, format, settings, deckLink, g_deckLinkInput, vm, env->NewGlobalRef(obj), method, stop);
 
     if(!delegate->valid)
     {

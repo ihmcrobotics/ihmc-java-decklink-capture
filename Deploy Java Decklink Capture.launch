@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<launchConfiguration type="org.eclipse.buildship.core.launch.runconfiguration">
+<listAttribute key="arguments"/>
+<stringAttribute key="bad_container_name" value="/ihmc-java"/>
+<stringAttribute key="gradle_distribution" value="GRADLE_DISTRIBUTION(WRAPPER)"/>
+<listAttribute key="jvm_arguments"/>
+<booleanAttribute key="show_console_view" value="true"/>
+<booleanAttribute key="show_execution_view" value="true"/>
+<listAttribute key="tasks">
+<listEntry value="deploy"/>
+</listAttribute>
+<booleanAttribute key="use_gradle_distribution_from_import" value="false"/>
+<stringAttribute key="working_dir" value="${workspace_loc:/ihmc-java-decklink-capture}"/>
+</launchConfiguration>

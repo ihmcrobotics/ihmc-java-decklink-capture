@@ -67,7 +67,7 @@ class DecklinkCaptureSettings
 class DeckLinkCaptureDelegate : public IDeckLinkInputCallback
 {
 public:
-    DeckLinkCaptureDelegate(std::string filename, DecklinkCaptureSettings* settings, IDeckLink*, IDeckLinkInput*decklinkInput, JavaVM* vm, jobject obj, jmethodID methodID, jmethodID stop);
+    DeckLinkCaptureDelegate(std::string filename, std::string format, DecklinkCaptureSettings* settings, IDeckLink*, IDeckLinkInput*decklinkInput, JavaVM* vm, jobject obj, jmethodID methodID, jmethodID stop);
 
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, LPVOID *ppv) { return E_NOINTERFACE; }
 	virtual ULONG STDMETHODCALLTYPE AddRef(void);
