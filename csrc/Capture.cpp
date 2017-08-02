@@ -99,6 +99,10 @@ DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, std::stri
     methodID(methodID),
     stop(stop),
     initial_video_pts(AV_NOPTS_VALUE),
+    record_audio(true),
+    initial_audio_pts(AV_NOPTS_VALUE),
+    audioSampleDepth(16),
+    audioChannels(2),
     settings(settings)
 {
     av_register_all();
@@ -114,7 +118,7 @@ DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, std::stri
 	{
 		oc->oformat = av_guess_format(format.c_str(), NULL, NULL);
 	}
-    
+	
 
 
     if(oc->oformat == NULL)
@@ -126,7 +130,15 @@ DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, std::stri
     {
         oc->oformat->video_codec = settings->codec;
         snprintf(oc->filename, sizeof(oc->filename), "%s", filename.c_str());
-        oc->oformat->audio_codec = AV_CODEC_ID_NONE;
+        
+        if(record_audio)
+        {
+    		oc->oformat->audio_codec = AV_CODEC_ID_AAC; 
+        }
+        else
+        {
+        	oc->oformat->audio_codec = AV_CODEC_ID_NONE;        	
+        }
     }
 }
 
@@ -214,7 +226,10 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
                     fprintf(stderr, "error encoding frame\n");
                 }
                 else if (got_output) {
-                    av_write_frame(oc, &pkt);
+                    if(av_interleaved_write_frame(oc, &pkt) != 0)
+                    {
+                    	fprintf(stderr, "Error while writing video frame\n");
+                    }
                     av_free_packet(&pkt); //depreacted, use av_packet_unref(&pkt); after Ubuntu 16.04 comes out
 
 
@@ -224,6 +239,47 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 
 
 		}
+	}
+	
+	if(record_audio && audioFrame)
+	{
+		AVFrame *frame = av_frame_alloc();
+	
+		void* audioBytes;
+		audioFrame->GetBytes(&audioBytes);
+        BMDTimeValue audio_pts;
+        audioFrame->GetPacketTime(&audio_pts, audio_st->time_base.den);
+        int64_t pts;
+        pts = audio_pts / audio_st->time_base.num;
+        
+        if (initial_audio_pts == AV_NOPTS_VALUE) {
+		    initial_audio_pts = pkt.pts;
+		}
+		
+		pts -= initial_audio_pts;
+		
+        av_init_packet(&audioPkt);
+        audioPkt.data = NULL;    // packet data will be allocated by the encoder
+        audioPkt.size = 0;
+        
+        audioPkt.pts = audioPkt.dts = pts;
+
+		int size = audioFrame->GetSampleFrameCount() * audioChannels * (audioSampleDepth / 8);
+		avcodec_fill_audio_frame(frame, audioContext->channels, audioContext->sample_fmt, (uint8_t*) audioBytes, size, 1);
+		int got_output;
+		int ret = avcodec_encode_audio2(audioContext, &audioPkt, frame, &got_output);
+		if (ret < 0) {
+            fprintf(stderr, "error encoding audio frame\n");
+        }
+        else if (got_output) {
+        	if(av_interleaved_write_frame(oc, &audioPkt) != 0)
+        	{
+        		fprintf(stderr, "Error while writing audio frame\n");
+        	}
+        	av_free_packet(&audioPkt);
+        }
+		
+		av_frame_free(&frame);	
 	}
 
 
@@ -386,6 +442,35 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
             goto bail;
 
         }
+        
+        
+        if(record_audio)
+        {
+        	audioCodec = avcodec_find_encoder(settings->codec);
+        	if (!audioCodec) {
+	            printf("audio codec not found\n");
+	            env->CallVoidMethod(obj, stop);
+	            goto bail;
+	        }
+	        
+            audio_st = avformat_new_stream(oc, audioCodec);
+		    if(!audio_st)
+		    {
+		        printf("Cannot allocate audio stream\n");
+		        env->CallVoidMethod(obj, stop);
+		        goto bail;
+		
+		    }
+		
+		    audioContext = audio_st->codec;
+		    audioContext->sample_fmt = AV_SAMPLE_FMT_S16;
+		    audioContext->bit_rate = 128000;
+		    audioContext->sample_rate = 44100;
+		    audioContext->channels = audioChannels;
+
+	        
+        }
+        
 
         decklinkInput->StartStreams();
     }

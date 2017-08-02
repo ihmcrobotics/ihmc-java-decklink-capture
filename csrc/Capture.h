@@ -93,21 +93,33 @@ private:
 
     jmethodID methodID;
     jmethodID stop;
-    DecklinkCaptureSettings* settings;
 
     AVCodec *codec = NULL;
     AVCodecContext *c= NULL;
     AVPacket pkt;
+    
+    AVCodec *audioCodec = NULL;
+    AVCodecContext *audioContext = NULL;
+    AVPacket audioPkt;
 
     AVFrame *pictureUYVY = NULL;
     AVFrame *pictureYUV420 = NULL;
 
     AVFormatContext *oc = NULL;
     AVStream *video_st = NULL;
+    AVStream *audio_st = NULL;
 
     struct SwsContext *img_convert_ctx = NULL;
 
     int64_t initial_video_pts;
+    
+    bool record_audio;
+	int64_t initial_audio_pts;
+	
+	int audioSampleDepth;
+	int audioChannels;  
+	
+    DecklinkCaptureSettings* settings;
 
 };
 
