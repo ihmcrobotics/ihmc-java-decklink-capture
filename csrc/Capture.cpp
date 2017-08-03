@@ -431,19 +431,10 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
         c->pix_fmt,
         sws_flags, NULL, NULL, NULL);
 
-        avformat_write_header(oc, NULL);
 
 
 
 
-        result = decklinkInput->EnableVideoInput(mode->GetDisplayMode(), pixelFormat, bmdVideoInputFlagDefault | bmdVideoInputEnableFormatDetection);
-        if (result != S_OK)
-        {
-            printf("Failed to switch to new video mode\n");
-            env->CallVoidMethod(obj, stop);
-            goto bail;
-
-        }
         
         
         if(record_audio)
@@ -472,6 +463,29 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
 
 	        
         }
+        
+        avformat_write_header(oc, NULL);
+
+        
+        result = decklinkInput->EnableVideoInput(mode->GetDisplayMode(), pixelFormat, bmdVideoInputFlagDefault | bmdVideoInputEnableFormatDetection);
+        if (result != S_OK)
+        {
+            printf("Failed to switch to new video mode\n");
+            env->CallVoidMethod(obj, stop);
+            goto bail;
+
+        }
+
+        
+        result = decklinkInput->EnableAudioInput(bmdAudioSampleRate48kHz,
+                                             getAudioSampleDepth(),
+                                             getAudioChannels());
+	    if (result != S_OK)
+	    {
+	        fprintf(stderr, "Failed to enable audio input.\n");
+	        env->CallVoidMethod(obj, stop);
+	        goto bail;
+	    }     
         
 
         decklinkInput->StartStreams();
