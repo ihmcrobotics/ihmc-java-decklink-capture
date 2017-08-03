@@ -265,6 +265,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
         audioPkt.pts = audioPkt.dts = pts;
 
 		int size = audioFrame->GetSampleFrameCount() * audioChannels * (audioSampleDepth / 8);
+		frame->nb_samples = audioFrame->GetSampleFrameCount();
 		avcodec_fill_audio_frame(frame, audioContext->channels, audioContext->sample_fmt, (uint8_t*) audioBytes, size, 1);
 		int got_output;
 		int ret = avcodec_encode_audio2(audioContext, &audioPkt, frame, &got_output);
@@ -465,7 +466,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
 		    audioContext = audio_st->codec;
 		    audioContext->sample_fmt = AV_SAMPLE_FMT_S16;
 		    audioContext->bit_rate = 128000;
-		    audioContext->sample_rate = 44100;
+		    audioContext->sample_rate = 48000;
 		    audioContext->channels = audioChannels;
 
 	        
@@ -790,6 +791,18 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
         delegate = NULL;
         goto bail;
     }
+    
+    result = g_deckLinkInput->EnableAudioInput(bmdAudioSampleRate48kHz,
+                                             delegate->getAudioSampleDepth(),
+                                             delegate->getAudioChannels());
+    if (result != S_OK)
+    {
+        fprintf(stderr, "Failed to enable audio input. Is another application using the card?\n");
+        delete delegate;
+        delegate = NULL;
+        goto bail;
+    }                                         
+                                             
 
     result = g_deckLinkInput->StartStreams();
     if (result != S_OK)

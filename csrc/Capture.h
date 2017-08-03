@@ -80,6 +80,11 @@ public:
     virtual ~DeckLinkCaptureDelegate();
 
     virtual void Stop();
+    
+    virtual int getAudioSampleDepth() { return audioSampleDepth; };
+    
+    virtual int getAudioChannels() { return audioChannels; };
+    
     JavaVM* vm = NULL;
     jobject obj = NULL;
 
