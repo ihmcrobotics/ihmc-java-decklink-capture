@@ -249,12 +249,12 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 	
 		audioFrame->GetBytes(&audioBytes);
         BMDTimeValue audio_pts;
-        audioFrame->GetPacketTime(&audio_pts, audio_st->time_base.den);
+		audioFrame->GetPacketTime(&audio_pts, audioContext->time_base.den);
         int64_t pts;
-        pts = audio_pts / audio_st->time_base.num;
+        pts = audio_pts / audioContext->time_base.num;
         
         if (initial_audio_pts == AV_NOPTS_VALUE) {
-		    initial_audio_pts = pkt.pts;
+		    initial_audio_pts = pts;
 		}
 		
 		pts -= initial_audio_pts;
@@ -268,13 +268,13 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 			if(resampleBuffer == NULL)
 			{
 				fprintf(stderr, "Alloc resampling buffer\n");
-				swret = av_samples_alloc_array_and_samples(&resampleBuffer, &out_linesize, audioChannels, audioFrame->GetSampleFrameCount(), audioContext->sample_fmt, 0);			
+				swret = av_samples_alloc_array_and_samples(&resampleBuffer, &out_linesize, audioChannels, out_num_samples, audioContext->sample_fmt, 0);			
 			}
 			else
 			{
 				fprintf(stderr, "resize resampling buffer\n");
 				av_freep(&resampleBuffer[0]);
-				swret = av_samples_alloc(resampleBuffer, &out_linesize, audioChannels, audioFrame->GetSampleFrameCount(), audioContext->sample_fmt, 0);
+				swret = av_samples_alloc(resampleBuffer, &out_linesize, audioChannels, out_num_samples, audioContext->sample_fmt, 0);
 			}
 			
 			if(swret < 0)
@@ -304,13 +304,14 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
         audioPkt.data = NULL;    // packet data will be allocated by the encoder
         audioPkt.size = 0;
         
-        audioPkt.pts = audioPkt.dts = pts;
+
 
 		frame->nb_samples = swret;
 		frame->format = audioContext->sample_fmt;
 		frame->channel_layout = audioContext->channel_layout;
 		frame->channels = audioContext->channels;
 		frame->sample_rate = audioContext->sample_rate;
+		frame->pts = pts;
 		avcodec_fill_audio_frame(frame, frame->channels, (AVSampleFormat) frame->format, resampleBuffer[0], destSize, 0);
 		int got_output;
 		int ret = avcodec_encode_audio2(audioContext, &audioPkt, frame, &got_output);
@@ -318,6 +319,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
             fprintf(stderr, "error encoding audio frame\n");
         }
         else if (got_output) {
+        	av_packet_rescale_ts(&audioPkt, audioContext->time_base, audio_st->time_base);
         	audioPkt.stream_index = audio_st->index;
         	if(av_interleaved_write_frame(oc, &audioPkt) != 0)
         	{
@@ -504,6 +506,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
 		    audioContext->bit_rate = 128000;
 		    audioContext->sample_rate = 44100;
 		    audioContext->channels = 2;
+		   	audioContext->channel_layout = av_get_default_channel_layout(audioContext->channels);
 		    
 	        if(oc->oformat->flags & AVFMT_GLOBALHEADER)
 		    {
