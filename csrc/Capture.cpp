@@ -179,7 +179,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 		if (videoFrame->GetFlags() & bmdFrameHasNoInputSource)
 		{
             printf("Frame received - No input signal detected\n");
-
+			return S_OK;
             //env->CallVoidMethod(obj, methodID, false, 0, 0, NULL);
 		}
 		else
@@ -243,6 +243,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 	
 	if(record_audio && audioFrame)
 	{
+	
 		AVFrame *frame = av_frame_alloc();
 	
 		void* audioBytes;
