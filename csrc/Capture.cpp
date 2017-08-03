@@ -458,9 +458,9 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
 		    }
 		
 		    audioContext = audio_st->codec;
-		    audioContext->sample_fmt = AV_SAMPLE_FMT_S16;
+		    audioContext->sample_fmt = AV_SAMPLE_FMT_S16P;
 		    audioContext->bit_rate = 128000;
-		    audioContext->sample_rate = 48000;
+		    audioContext->sample_rate = 44100;
 		    audioContext->channels = audioChannels;
 		    
 	        if(oc->oformat->flags & AVFMT_GLOBALHEADER)
