@@ -461,7 +461,12 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
 		    audioContext->sample_rate = 48000;
 		    audioContext->channels = audioChannels;
 
-	        
+            if (avcodec_open2(audioContext, audioCodec, NULL) < 0) {
+	            printf("Could not open audio codec\n");
+	            env->CallVoidMethod(obj, stop);
+	            goto bail;
+	        }
+
         }
         
         avformat_write_header(oc, NULL);
