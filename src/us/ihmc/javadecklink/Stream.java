@@ -3,6 +3,7 @@ package us.ihmc.javadecklink;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import com.martiansoftware.jsap.FlaggedOption;
 import com.martiansoftware.jsap.JSAP;
@@ -24,11 +25,12 @@ public class Stream
       
       CaptureHandlerImpl captureHandlerImpl = new CaptureHandlerImpl();
       capture = new Capture(captureHandlerImpl, CodecID.AV_CODEC_ID_H264);
-      capture.setOption("preset", "medium");
-      capture.setOption("g", "1");
-      capture.setOption("crf", "25");
-      capture.setFormat("flv");
       
+      for(Entry<String, String> entry : options.entrySet())
+      {
+         capture.setOption(entry.getKey(), entry.getValue());
+      }
+      capture.setFormat("flv");
       capture.startCapture(videoURL, card);
    }
    

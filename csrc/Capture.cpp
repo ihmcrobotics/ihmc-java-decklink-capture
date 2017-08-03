@@ -133,7 +133,7 @@ DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, std::stri
         
         if(record_audio)
         {
-    		oc->oformat->audio_codec = AV_CODEC_ID_AAC; 
+    		oc->oformat->audio_codec = AV_CODEC_ID_MP3; 
         }
         else
         {
@@ -226,6 +226,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
                     fprintf(stderr, "error encoding frame\n");
                 }
                 else if (got_output) {
+                	pkt.stream_index = video_st->index;
                     if(av_interleaved_write_frame(oc, &pkt) != 0)
                     {
                     	fprintf(stderr, "Error while writing video frame\n");
@@ -274,6 +275,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
             fprintf(stderr, "error encoding audio frame\n");
         }
         else if (got_output) {
+        	audioPkt.stream_index = audio_st->index;
         	if(av_interleaved_write_frame(oc, &audioPkt) != 0)
         	{
         		fprintf(stderr, "Error while writing audio frame\n");
@@ -439,7 +441,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
         
         if(record_audio)
         {
-        	audioCodec = avcodec_find_encoder(settings->codec);
+        	audioCodec = avcodec_find_encoder(oc->oformat->audio_codec);
         	if (!audioCodec) {
 	            printf("audio codec not found\n");
 	            env->CallVoidMethod(obj, stop);
@@ -460,6 +462,11 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
 		    audioContext->bit_rate = 128000;
 		    audioContext->sample_rate = 48000;
 		    audioContext->channels = audioChannels;
+		    
+	        if(oc->oformat->flags & AVFMT_GLOBALHEADER)
+		    {
+		        audioContext->flags |= CODEC_FLAG_GLOBAL_HEADER;
+		    }
 
             if (avcodec_open2(audioContext, audioCodec, NULL) < 0) {
 	            printf("Could not open audio codec\n");
