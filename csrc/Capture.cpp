@@ -131,7 +131,7 @@ DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, std::stri
         
         if(record_audio)
         {
-    		oc->oformat->audio_codec = AV_CODEC_ID_MP3; 
+    		oc->oformat->audio_codec = AV_CODEC_ID_AAC; 
         }
         else
         {
@@ -261,20 +261,18 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 		
 		
 		
-		int out_num_samples = av_rescale_rnd(swr_get_delay(resample_ctx, 48000) + audioFrame->GetSampleFrameCount(), audioContext->sample_rate, 48000, AV_ROUND_UP);
+        int out_num_samples = swr_get_out_samples(resample_ctx, audioFrame->GetSampleFrameCount());
 		
 		if(out_num_samples > max_out_num_samples)
 		{	
 			if(resampleBuffer == NULL)
 			{
-				fprintf(stderr, "Alloc resampling buffer\n");
-				swret = av_samples_alloc_array_and_samples(&resampleBuffer, &out_linesize, audioChannels, out_num_samples, audioContext->sample_fmt, 0);			
+				swret = av_samples_alloc_array_and_samples(&resampleBuffer, &out_linesize, audioChannels, out_num_samples, audioContext->sample_fmt, 1);			
 			}
 			else
 			{
-				fprintf(stderr, "resize resampling buffer\n");
 				av_freep(&resampleBuffer[0]);
-				swret = av_samples_alloc(resampleBuffer, &out_linesize, audioChannels, out_num_samples, audioContext->sample_fmt, 0);
+				swret = av_samples_alloc(resampleBuffer, &out_linesize, audioChannels, out_num_samples, audioContext->sample_fmt, 1);
 			}
 			
 			if(swret < 0)
@@ -296,7 +294,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 			return S_OK;
 		}
 		
-		int destSize = av_samples_get_buffer_size(&out_linesize, audioChannels, swret, audioContext->sample_fmt, 0);
+		int destSize = av_samples_get_buffer_size(&out_linesize, audioChannels, swret, audioContext->sample_fmt, 1);
 		
 		
 		
@@ -312,7 +310,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 		frame->channels = audioContext->channels;
 		frame->sample_rate = audioContext->sample_rate;
 		frame->pts = pts;
-		avcodec_fill_audio_frame(frame, frame->channels, (AVSampleFormat) frame->format, resampleBuffer[0], destSize, 0);
+		avcodec_fill_audio_frame(frame, frame->channels, (AVSampleFormat) frame->format, resampleBuffer[0], destSize, 1);
 		int got_output;
 		int ret = avcodec_encode_audio2(audioContext, &audioPkt, frame, &got_output);
 		if (ret < 0) {
@@ -502,7 +500,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
 		    }
 		
 		    audioContext = audio_st->codec;
-		    audioContext->sample_fmt = AV_SAMPLE_FMT_S16P;
+		    audioContext->sample_fmt = AV_SAMPLE_FMT_FLTP;
 		    audioContext->bit_rate = 128000;
 		    audioContext->sample_rate = 44100;
 		    audioContext->channels = 2;
@@ -513,7 +511,10 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
 		        audioContext->flags |= CODEC_FLAG_GLOBAL_HEADER;
 		    }
 
-            if (avcodec_open2(audioContext, audioCodec, NULL) < 0) {
+			AVDictionary *opts = NULL;
+			av_dict_set(&opts, "strict", "experimental", 0);
+
+            if (avcodec_open2(audioContext, audioCodec, &opts) < 0) {
 	            printf("Could not open audio codec\n");
 	            env->CallVoidMethod(obj, stop);
 	            goto bail;
@@ -560,15 +561,18 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
         }
 
         
-        result = decklinkInput->EnableAudioInput(bmdAudioSampleRate48kHz,        
-                                             getAudioSampleDepth(),
-                                             getAudioChannels());
-	    if (result != S_OK)
-	    {
-	        fprintf(stderr, "Failed to enable audio input.\n");
-	        env->CallVoidMethod(obj, stop);
-	        goto bail;
-	    }     
+        if(record_audio)
+        {
+	        result = decklinkInput->EnableAudioInput(bmdAudioSampleRate48kHz,        
+	                                             getAudioSampleDepth(),
+	                                             getAudioChannels());
+		    if (result != S_OK)
+		    {
+		        fprintf(stderr, "Failed to enable audio input.\n");
+		        env->CallVoidMethod(obj, stop);
+		        goto bail;
+		    }     
+		}
         
 
         decklinkInput->StartStreams();
