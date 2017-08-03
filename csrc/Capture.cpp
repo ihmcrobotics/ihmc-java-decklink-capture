@@ -42,6 +42,7 @@
 #include "Util.hpp"
 #include "us_ihmc_javadecklink_Capture.h"
 
+#include "libswresample/swresample.h"
 
 
 #include <time.h>
@@ -244,10 +245,11 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 	
 	if(record_audio && audioFrame)
 	{
+		int swret;
+		void* audioBytes;
 	
 		AVFrame *frame = av_frame_alloc();
 	
-		void* audioBytes;
 		audioFrame->GetBytes(&audioBytes);
         BMDTimeValue audio_pts;
         audioFrame->GetPacketTime(&audio_pts, audio_st->time_base.den);
@@ -260,15 +262,55 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 		
 		pts -= initial_audio_pts;
 		
+		
+		
+		int out_num_samples = av_rescale_rnd(swr_get_delay(resample_ctx, 48000) + audioFrame->GetSampleFrameCount(), audioContext->sample_rate, 48000, AV_ROUND_UP);
+		
+		if(out_num_samples > max_out_num_samples)
+		{	
+			if(resampleBuffer == NULL)
+			{
+				fprintf(stderr, "Alloc resampling buffer\n");
+				swret = av_samples_alloc_array_and_samples(&resampleBuffer, NULL, audioChannels, audioFrame->GetSampleFrameCount(), audioContext->sample_fmt, 1);			
+			}
+			else
+			{
+				fprintf(stderr, "resize resampling buffer\n");
+				av_freep(&resampleBuffer[0]);
+				swret = av_samples_alloc(resampleBuffer, NULL, audioChannels, audioFrame->GetSampleFrameCount(), audioContext->sample_fmt, 1);
+			}
+			
+			if(swret < 0)
+			{
+				fprintf(stderr, "error allocating resampling buffer\n");
+				return S_OK;	
+			}
+			
+			max_out_num_samples = out_num_samples;
+			
+		}
+		
+		
+		swret = swr_convert(resample_ctx, resampleBuffer, out_num_samples, (const uint8_t**) &audioBytes, audioFrame->GetSampleFrameCount());
+		if(swret < 0)
+		{
+			fprintf(stderr, "error resampling audio\n");
+			av_freep(&resampleBuffer[0]);
+			return S_OK;
+		}
+		
+		int destSize = av_samples_get_buffer_size(NULL, audioChannels, swret, audioContext->sample_fmt, 1);
+		
+		
+		
         av_init_packet(&audioPkt);
         audioPkt.data = NULL;    // packet data will be allocated by the encoder
         audioPkt.size = 0;
         
         audioPkt.pts = audioPkt.dts = pts;
 
-		int size = audioFrame->GetSampleFrameCount() * audioChannels * (audioSampleDepth / 8);
-		frame->nb_samples = audioFrame->GetSampleFrameCount();
-		avcodec_fill_audio_frame(frame, audioContext->channels, audioContext->sample_fmt, (uint8_t*) audioBytes, size, 1);
+		frame->nb_samples = swret;
+		avcodec_fill_audio_frame(frame, audioContext->channels, audioContext->sample_fmt, resampleBuffer[0], destSize, 1);
 		int got_output;
 		int ret = avcodec_encode_audio2(audioContext, &audioPkt, frame, &got_output);
 		if (ret < 0) {
@@ -282,7 +324,6 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
         	}
         	av_free_packet(&audioPkt);
         }
-		
 		av_frame_free(&frame);	
 	}
 
@@ -461,7 +502,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
 		    audioContext->sample_fmt = AV_SAMPLE_FMT_S16P;
 		    audioContext->bit_rate = 128000;
 		    audioContext->sample_rate = 44100;
-		    audioContext->channels = audioChannels;
+		    audioContext->channels = 2;
 		    
 	        if(oc->oformat->flags & AVFMT_GLOBALHEADER)
 		    {
@@ -473,6 +514,32 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
 	            env->CallVoidMethod(obj, stop);
 	            goto bail;
 	        }
+	        
+	        resample_ctx = swr_alloc_set_opts(NULL,
+	        									av_get_default_channel_layout(audioContext->channels),
+        										audioContext->sample_fmt,
+        										audioContext->sample_rate,
+        										av_get_default_channel_layout(audioChannels),
+        										AV_SAMPLE_FMT_S16,
+        										48000,
+        										0, NULL);
+			if(!resample_ctx)
+			{
+				printf("Could not allocate resample context\n");
+	            env->CallVoidMethod(obj, stop);
+	            goto bail;
+			}
+			
+			int resample_error = swr_init(resample_ctx);
+			if(resample_error < 0)
+			{
+				printf("Could not open resample context\n");
+				swr_free(&resample_ctx);
+	            env->CallVoidMethod(obj, stop);
+	            goto bail;
+			}
+			
+			
 
         }
         
@@ -489,7 +556,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
         }
 
         
-        result = decklinkInput->EnableAudioInput(bmdAudioSampleRate48kHz,
+        result = decklinkInput->EnableAudioInput(bmdAudioSampleRate48kHz,        
                                              getAudioSampleDepth(),
                                              getAudioChannels());
 	    if (result != S_OK)
@@ -570,12 +637,36 @@ DeckLinkCaptureDelegate::~DeckLinkCaptureDelegate()
     }
 
 
+
+    sws_freeContext(img_convert_ctx);
+    
+    if(record_audio)
+    {
+    	if(audioContext != NULL)
+    	{	
+			avcodec_close(audioContext);
+			av_free(audioContext);
+    	}
+    	
+    	if(video_st != NULL)
+    	{
+    		av_freep(audio_st);
+    	}
+    	
+    	if(resampleBuffer != NULL)	
+    	{
+			av_freep(&resampleBuffer[0]);
+			av_freep(&resampleBuffer);
+    	}
+    
+    	swr_free(&resample_ctx);
+    }
+    
+    
     if(oc != NULL)
     {
         av_free(oc);
     }
-
-    sws_freeContext(img_convert_ctx);
 
 
     if (decklinkInput != NULL)

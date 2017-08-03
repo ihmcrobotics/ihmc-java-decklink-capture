@@ -115,6 +115,10 @@ private:
     AVStream *audio_st = NULL;
 
     struct SwsContext *img_convert_ctx = NULL;
+    struct SwrContext *resample_ctx = NULL;
+    
+    uint8_t **resampleBuffer = NULL;
+    uint8_t max_out_num_samples = 0;
 
     int64_t initial_video_pts;
     
