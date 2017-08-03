@@ -60,6 +60,8 @@ public class Capture
    private boolean alive = true;
    private String format = null;
    
+   private boolean recordAudio = false;
+   
    public Capture(CaptureHandler captureHandler, CodecID codec)
    {
       if(!loaded)
@@ -74,6 +76,24 @@ public class Capture
       
    }
    
+   
+   /**
+    * Enable recording audio in MP3 format
+    * 
+    * This functionality is experimental.
+    * 
+    * Audio settings:
+    * 128kbps
+    * 44.1kHz
+    * 2 channel
+    * 
+    * 
+    * @param recordAudio set to true to record audio.
+    */
+   public void setRecordAudio(boolean recordAudio)
+   {
+      this.recordAudio = recordAudio;
+   }
    
    /**
     * 

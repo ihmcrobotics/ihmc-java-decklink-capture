@@ -30,6 +30,7 @@ public class Stream
       {
          capture.setOption(entry.getKey(), entry.getValue());
       }
+      capture.setRecordAudio(true);
       capture.setOption("g", "120");
       capture.setFormat("flv");
       capture.startCapture(videoURL, card);

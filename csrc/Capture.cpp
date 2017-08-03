@@ -87,7 +87,7 @@ inline JNIEnv* registerDecklinkDelegate(DeckLinkCaptureDelegate* delegate)
 }
 
 
-DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, std::string format, DecklinkCaptureSettings* settings, IDeckLink* decklink, IDeckLinkInput* decklinkInput, JavaVM* vm, jobject obj, jmethodID methodID, jmethodID stop) :
+DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, std::string format, bool recordAudio, DecklinkCaptureSettings* settings, IDeckLink* decklink, IDeckLinkInput* decklinkInput, JavaVM* vm, jobject obj, jmethodID methodID, jmethodID stop) :
     vm(vm),
     obj(obj),
     valid(true),
@@ -97,7 +97,7 @@ DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(std::string filename, std::stri
     methodID(methodID),
     stop(stop),
     initial_video_pts(AV_NOPTS_VALUE),
-    record_audio(true),
+    record_audio(recordAudio),
     initial_audio_pts(AV_NOPTS_VALUE),
     audioSampleDepth(16),
     audioChannels(2),
@@ -751,7 +751,7 @@ JNIEXPORT void JNICALL Java_us_ihmc_javadecklink_Capture_stopCaptureNative
 
 
 JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
-  (JNIEnv *env, jobject obj, jstring filename, jstring jformat, jint device, jlong settingsPtr)
+  (JNIEnv *env, jobject obj, jstring filename, jstring jformat, jboolean recordAudio, jint device, jlong settingsPtr)
 {
 
 	DecklinkCaptureSettings* settings = (DecklinkCaptureSettings*) settingsPtr;
@@ -894,7 +894,7 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
 	}
 
     // Configure the capture callback
-    delegate = new DeckLinkCaptureDelegate(cfilename, format, settings, deckLink, g_deckLinkInput, vm, env->NewGlobalRef(obj), method, stop);
+    delegate = new DeckLinkCaptureDelegate(cfilename, format, recordAudio, settings, deckLink, g_deckLinkInput, vm, env->NewGlobalRef(obj), method, stop);
 
     if(!delegate->valid)
     {
