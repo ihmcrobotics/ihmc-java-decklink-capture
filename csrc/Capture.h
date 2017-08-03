@@ -120,7 +120,8 @@ private:
     
     uint8_t **resampleBuffer = NULL;
     int max_out_num_samples = 0;
-
+	int out_linesize = 0;
+	
     int64_t initial_video_pts;
     
     bool record_audio;
