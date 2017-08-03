@@ -37,6 +37,7 @@ extern "C" {
 #include "libavutil/common.h"
 #include "libavutil/imgutils.h"
 #include "libswscale/swscale.h"
+#include "libswresample/swresample.h"
 #include "libavformat/avformat.h"
 #include <libavutil/opt.h> 
 }
@@ -118,7 +119,7 @@ private:
     struct SwrContext *resample_ctx = NULL;
     
     uint8_t **resampleBuffer = NULL;
-    uint8_t max_out_num_samples = 0;
+    int max_out_num_samples = 0;
 
     int64_t initial_video_pts;
     

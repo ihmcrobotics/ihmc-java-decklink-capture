@@ -42,9 +42,6 @@
 #include "Util.hpp"
 #include "us_ihmc_javadecklink_Capture.h"
 
-#include "libswresample/swresample.h"
-
-
 #include <time.h>
 
 
