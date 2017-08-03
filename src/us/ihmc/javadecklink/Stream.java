@@ -30,6 +30,7 @@ public class Stream
       {
          capture.setOption(entry.getKey(), entry.getValue());
       }
+      capture.setOption("g", "120");
       capture.setFormat("flv");
       capture.startCapture(videoURL, card);
    }
@@ -44,12 +45,12 @@ public class Stream
    {
       
       SimpleJSAP jsap = new SimpleJSAP("Stream", "Stream Decklink capture card to streaming services", new Parameter[] {
-            new FlaggedOption("preset", JSAP.STRING_PARSER, "medium", JSAP.NOT_REQUIRED,  JSAP.NO_SHORTFLAG, "preset",
+            new FlaggedOption("preset", JSAP.STRING_PARSER, "veryfast", JSAP.NOT_REQUIRED,  JSAP.NO_SHORTFLAG, "preset",
                   "H264 preset (ultrafast,superfast, veryfast, faster, fast, medium, slow, slower, veryslow)"),
             new FlaggedOption("profile", JSAP.STRING_PARSER, "high", JSAP.NOT_REQUIRED, JSAP.NO_SHORTFLAG, "profile",
                   "H264 profile (baseline, main, high, high10, high422, high444)"),
-            new FlaggedOption("crf", JSAP.INTEGER_PARSER, "23", JSAP.NOT_REQUIRED, JSAP.NO_SHORTFLAG, "crf",
-                  "Constant rate factor. 0-51. 23 default, useful range 18-28"),
+            new FlaggedOption("crf", JSAP.INTEGER_PARSER, "26", JSAP.NOT_REQUIRED, JSAP.NO_SHORTFLAG, "crf",
+                  "Constant rate factor. 0-51. 26 default, useful range 18-28"),
             new FlaggedOption("card", JSAP.INTEGER_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, 'c', "card", "Capture card to use"), 
             new UnflaggedOption("videoURL", JSAP.STRING_PARSER, JSAP.NO_DEFAULT, JSAP.REQUIRED, false, "URL to stream the video to")
       });
