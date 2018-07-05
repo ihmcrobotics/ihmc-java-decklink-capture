@@ -19,7 +19,7 @@ apply plugin: "org.hidetake.ssh"
 
 sourceCompatibility = 1.7
 targetCompatibility = 1.7
-version = '0.2'
+version = '0.3'
 
 project.ext.fullVersion = version
 project.ext.vcsUrl = "https://github.com/ihmcrobotics/ihmc-hierarchical-kinematics"
