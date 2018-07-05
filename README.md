@@ -23,13 +23,15 @@ Libraries are tested one by one in the runtime till one loads.
 
 The Blackmagic SDK is included in the distribution and gets  unzipped by the build file.
 ```
-apt-get install libavformat-dev libavcodec-dev libswscale-dev
+apt-get install libavformat-dev libavcodec-dev libswscale-dev libboost-1.58-all-dev openjdk-8-jdk
 mkdir build
 cd build
 cmake ..
 make 
 make install
 ```
+
+if cmake complains about Java include directories make sure openjdk-8-jdk is installed and then export JAVA\_HOME (e.g. `export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64`)
 
 A new version is now placed in resources/us/ihmc/javaDecklink/lib. Note the version as in libJavadecklink[version].so. 
 
