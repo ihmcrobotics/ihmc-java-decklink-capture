@@ -1,146 +1,62 @@
-buildscript {
-  repositories {
-    maven {
-      url "https://plugins.gradle.org/m2/"
-    }
-  }
-  dependencies {
-    classpath "gradle.plugin.us.ihmc.gradle:ihmc-build:0.0.19"
-    classpath "org.hidetake:gradle-ssh-plugin:2.1.1"
-  }
+plugins {
+   id("us.ihmc.ihmc-build") version "0.15.5"
+   id("org.hidetake.ssh") version "2.9.0"
+   id("application")
 }
-apply plugin: "us.ihmc.gradle.ihmc-build"
 
-apply plugin: 'java'
-apply plugin: 'maven-publish'
-apply plugin: 'application'
-apply plugin: "org.hidetake.ssh"
+ihmc {
+   group = "us.ihmc"
+   version = "0.3"
+   vcsUrl = "https://github.com/ihmcrobotics/ihmc-java-decklink-capture"
+   openSource = true
 
-
-sourceCompatibility = 1.7
-targetCompatibility = 1.7
-version = '0.2'
-
-project.ext.fullVersion = version
-project.ext.vcsUrl = "https://github.com/ihmcrobotics/ihmc-hierarchical-kinematics"
-project.ext.licenseURL = "http://www.apache.org/licenses/LICENSE-2.0.txt"
-project.ext.licenseName = "Apache License, Version 2.0"
-project.ext.bintrayLicenseName = "Apache-2.0"
+   configureDependencyResolution()
+   javaDirectory("main", "../../src")
+   resourceDirectory("main", "../../resources")
+   configurePublications()
+}
 
 mainClassName = "us.ihmc.javadecklink.Stream"
 
-repositories {
-  jcenter()
-  mavenCentral()
-  maven {
-      url  "http://dl.bintray.com/ihmcrobotics/maven-release"
-  }
-}
-
-task wrapper(type: Wrapper) {
-    gradleVersion = '3.2.1'
-}
-
-dependencies
+mainDependencies
 {
-    testCompile group: 'junit', name: 'junit', version: '4.11'
-
-    compile group: 'us.ihmc', name: 'IHMCNativeLibraryLoader', version: '1.0'
-   compile group: 'com.martiansoftware', name: 'jsap', version: '2.1'    
+   compile("us.ihmc:IHMCNativeLibraryLoader:1.0")
+   compile("com.martiansoftware:jsap:2.1")
 }
 
+task captureTarget {
+   doLast {
+      def deployLoggerUserValue = project.hasProperty("deployLoggerUser") ? project.deployLoggerUser : "invalid"
+      def deployLoggerPasswordValue = project.hasProperty("deployLoggerPassword") ? project.deployLoggerPassword : "invalid"
+      def deployLoggerHostValue = project.hasProperty("deployLoggerHost") ? project.deployLoggerHost : "invalid"
 
-task sourceJar(type: Jar) {
-	from sourceSets.main.allJava
-}
-
-jar {
-   manifest {
-      attributes(
-      "Created-By": "IHMC Gradle Build Script",
-      "Implementation-Title": project.name,
-      "Implementation-Version": project.version,
-      "Implementation-Vendor": "IHMC",
-
-      "Bundle-Name": project.name,
-      "Bundle-Version": project.version,
-      "Bundle-License": "http://www.apache.org/licenses/LICENSE-2.0.txt",
-      "Bundle-Vendor": "IHMC")
-   }
-}
-
-publishing {
-	publications {
-		mavenJava(MavenPublication) {
-
-			groupId 'us.ihmc'
-			artifactId project.name
-			version "$version"
-			from components.java
-
-			pom.withXml {
-                asNode().children().last() + {
-                    resolveStrategy = Closure.DELEGATE_FIRST
-                    name project.name
-                    url 'https://github.com/ihmcrobotics/ihmc-java-decklink-capture'
-                    licenses {
-                        license {
-                            name 'The Apache Software License, Version 2.0'
-                            url 'http://www.apache.org/license/LICENSE-2.0.txt'
-                            distribution 'repo'
-                        }
-                    }
-                    developers {
-                        developer {
-                            id 'jsmith'
-                            name 'Jesper Smith'
-                            email 'jsmith@ihmc.us'
-                        }
-                    }
-                }
-
-        	}
-
-			artifact sourceJar {
-				classifier "sources"
-			}
-		}
-	}
-}
-
-task captureTarget << {
-   def deployLoggerUserValue = project.hasProperty("deployLoggerUser") ? project.deployLoggerUser : "invalid"
-   def deployLoggerPasswordValue = project.hasProperty("deployLoggerPassword") ? project.deployLoggerPassword : "invalid"
-   def deployLoggerHostValue = project.hasProperty("deployLoggerHost") ? project.deployLoggerHost : "invalid"
-
-   remotes.create('captureTarget') {
-      host = deployLoggerHostValue
-      user = deployLoggerUserValue
-      password = deployLoggerPasswordValue
-      knownHosts = allowAnyHosts
-   }
-}
-
-task deploy(dependsOn: [distTar, captureTarget]) << {
-   ssh.run {
-      session(remotes.captureTarget) {
-         project.logger.lifecycle("Copying java decklink capture to remote")
-         def distTarFile = distTar.outputs.files.singleFile
-         put from: distTarFile, into: "."
-
-         project.logger.lifecycle("Untarring distribution on remote host")
-         execute "tar xf ./${distTarFile.name}"
-         project.logger.lifecycle("Removing tarball from remote host")
-         execute "rm -f ./${distTarFile.name}"
-         project.logger.lifecycle("Removing old version")
-         execute "rm -rf Capture"
-         project.logger.lifecycle("Moving Java Declink Capture distribution in to place")
-         execute "mv ./${distTarFile.name.replace(".tar", "")} Capture"
-         project.logger.lifecycle("Capture deployment to remote host complete!")
+      remotes.create('captureTarget') {
+         host = deployLoggerHostValue
+         user = deployLoggerUserValue
+         password = deployLoggerPasswordValue
+         knownHosts = allowAnyHosts
       }
    }
 }
 
+task deploy(dependsOn: [distTar, captureTarget]) {
+   doLast {
+      ssh.run {
+         session(remotes.captureTarget) {
+            project.logger.lifecycle("Copying java decklink capture to remote")
+            def distTarFile = distTar.outputs.files.singleFile
+            put from: distTarFile, into: "."
 
-def labels = ['ihmc', 'robotics', 'java', 'video', 'decklink']
-ihmc.configureForIHMCOpenSourceBintrayPublish(false, "mavenJava", "maven-release", labels)
+            project.logger.lifecycle("Untarring distribution on remote host")
+            execute "tar xf ./${distTarFile.name}"
+            project.logger.lifecycle("Removing tarball from remote host")
+            execute "rm -f ./${distTarFile.name}"
+            project.logger.lifecycle("Removing old version")
+            execute "rm -rf Capture"
+            project.logger.lifecycle("Moving Java Declink Capture distribution in to place")
+            execute "mv ./${distTarFile.name.replace(".tar", "")} Capture"
+            project.logger.lifecycle("Capture deployment to remote host complete!")
+         }
+      }
+   }
+}
