@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.1)
 project(javadecklinkapi)
 
-SET(DECKLINK_VERSION "10.8.5")
+SET(DECKLINK_VERSION "11.2")
 set (CMAKE_CXX_STANDARD 11)
 
 

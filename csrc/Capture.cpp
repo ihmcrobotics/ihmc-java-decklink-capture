@@ -763,7 +763,14 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
 	IDeckLinkDisplayModeIterator*	displayModeIterator = NULL;
 	IDeckLinkDisplayMode*			displayMode = NULL;
     char*							displayModeName = NULL;
-	BMDDisplayModeSupport			displayModeSupported;
+
+#ifdef DECKLINK_VERSION_10
+#warning "Compiling for decklink 10"
+    BMDDisplayModeSupport                   displayModeSupported;
+#else
+    #warning "Compiling for decklink 11"
+    bool			displayModeSupported;
+#endif
 
 	DeckLinkCaptureDelegate*		delegate = NULL;
 
@@ -882,16 +889,31 @@ JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
         snprintf(displayModeName, 32, "[index %d]", displayModeId);
 	}
 
+
+#ifdef DECKLINK_VERSION_10
+
 	// Check display mode is supported with given options
     result = g_deckLinkInput->DoesSupportVideoMode(displayMode->GetDisplayMode(), bmdFormat8BitYUV, bmdVideoInputFlagDefault, &displayModeSupported, NULL);
-	if (result != S_OK)
+    if (result != S_OK)
 		goto bail;
 
-	if (displayModeSupported == bmdDisplayModeNotSupported)
+    if (displayModeSupported == bmdDisplayModeNotSupported)
 	{
 		fprintf(stderr, "The display mode %s is not supported with the selected pixel format\n", displayModeName);
 		goto bail;
 	}
+#else
+    // Check display mode is supported with given options
+    result = g_deckLinkInput->DoesSupportVideoMode(bmdVideoConnectionUnspecified, displayMode->GetDisplayMode(), bmdFormat8BitYUV, bmdSupportedVideoModeDefault, &displayModeSupported);
+    if (result != S_OK)
+        goto bail;
+
+    if (!displayModeSupported)
+    {
+        fprintf(stderr, "The display mode %s is not supported with the selected pixel format\n", displayModeName);
+        goto bail;
+    }
+#endif
 
     // Configure the capture callback
     delegate = new DeckLinkCaptureDelegate(cfilename, format, recordAudio, settings, deckLink, g_deckLinkInput, vm, env->NewGlobalRef(obj), method, stop);

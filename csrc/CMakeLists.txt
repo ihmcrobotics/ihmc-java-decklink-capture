@@ -24,6 +24,10 @@ ENDIF()
 SET(SDK_LIB "${SDK_PATH}/include/DeckLinkAPIDispatch.cpp")
 set_source_files_properties("${SDK_LIB}" PROPERTIES GENERATED TRUE)
 add_library(${LIBNAME} SHARED Capture.cpp "${SDK_LIB}")
+if(DECKLINK_VERSION EQUAL "10.8.5")
+
+target_compile_definitions(${LIBNAME} PRIVATE DECKLINK_VERSION_10)
+endif()
 
 target_link_libraries(${LIBNAME} m dl pthread ${AVLIB_LIBRARIES} ${Boost_LIBRARIES})
 add_dependencies(${LIBNAME} DecklinkSDK)
