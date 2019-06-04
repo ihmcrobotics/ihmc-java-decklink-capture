@@ -23,7 +23,7 @@ public class Capture
    
    
    static private boolean loaded = false;
-   private static final String LIBAV_SUPPORTED_VERSIONS[] = { "-avcodec56-swscale3-avformat56-ffmpeg", "-avcodec57-swscale4-avformat57" };
+   private static final String LIBAV_SUPPORTED_VERSIONS[] = { "-avcodec56-swscale3-avformat56-ffmpeg", "-desktopvideo11.2-avcodec57-swscale4-avformat57" };
    private final ReentrantLock lock = new ReentrantLock();
    static
    {
