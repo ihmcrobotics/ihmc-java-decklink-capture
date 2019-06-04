@@ -5,6 +5,21 @@ capture control is provided trough a JNI interface
 
 ## Requirements
 
+
+### Ubuntu 18.04
+Get "Desktop Video 11.2" from [https://www.blackmagicdesign.com/support/family/capture-and-playback](https://www.blackmagicdesign.com/support/family/capture-and-playback).
+
+Install avcodec dependencies. On ubuntu 18.04 run
+
+```
+apt install libavformat57 libavcodec57 libswscale4
+```
+
+Native libraries are provided for
+- Ubuntu 18.04
+
+
+### Ubuntu 16.04/16.10
 Get "Desktop Video 10.8.5" from [https://www.blackmagicdesign.com/support/family/capture-and-playback](https://www.blackmagicdesign.com/support/family/capture-and-playback).
 
 Install avcodec dependencies. On ubuntu run
