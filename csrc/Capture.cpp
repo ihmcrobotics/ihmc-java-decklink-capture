@@ -750,8 +750,8 @@ JNIEXPORT void JNICALL Java_us_ihmc_javadecklink_Capture_stopCaptureNative
 }
 
 
-JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
-  (JNIEnv *env, jobject obj, jstring filename, jstring jformat, jboolean recordAudio, jint device, jlong settingsPtr)
+jlong JNICALL startCaptureNative_Impl
+(JNIEnv *env, jobject obj, jstring filename, jstring jformat, jboolean recordAudio, jint device, jlong settingsPtr)
 {
 
 	DecklinkCaptureSettings* settings = (DecklinkCaptureSettings*) settingsPtr;
@@ -974,4 +974,18 @@ bail:
 		deckLinkIterator->Release();
 
     return (jlong) delegate;
+}
+
+
+
+JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNative
+  (JNIEnv *env, jobject obj, jstring filename, jstring jformat, jint device, jlong settingsPtr)
+{
+    return startCaptureNative_Impl(env, obj, filename, jformat, false, device, settingsPtr);
+}
+
+JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_startCaptureNativeWithAudio
+(JNIEnv *env, jobject obj, jstring filename, jstring jformat, jint device, jlong settingsPtr)
+{
+    return startCaptureNative_Impl(env, obj, filename, jformat, true, device, settingsPtr);
 }
