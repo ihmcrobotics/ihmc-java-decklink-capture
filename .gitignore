@@ -9,3 +9,4 @@ classes
 *.iml
 .idea
 cbuild/
+Blackmagic_DeckLink_SDK_*.zip
