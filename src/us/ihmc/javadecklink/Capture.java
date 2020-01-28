@@ -23,7 +23,7 @@ public class Capture
    
    
    static private boolean loaded = false;
-   private static final String LIBAV_SUPPORTED_VERSIONS[] = { "-avcodec56-swscale3-avformat56-ffmpeg", "-avcodec57-swscale4-avformat57" };
+   private static final String LIBAV_SUPPORTED_VERSIONS[] = { "-desktopvideo10.8.5-avcodec56-swscale3-avformat56-ffmpeg", "-desktopvideo11.2-avcodec57-swscale4-avformat57" };
    private final ReentrantLock lock = new ReentrantLock();
    static
    {
@@ -46,6 +46,7 @@ public class Capture
 
    private native long getHardwareTime(long ptr);
    private native long startCaptureNative(String filename, String format, int decklink, long captureSettings);
+   private native long startCaptureNativeWithAudio(String filename, String format, int decklink, long captureSettings);
    private native void stopCaptureNative(long ptr);
 
    private native long createCaptureSettings(int codec);
@@ -162,7 +163,14 @@ public class Capture
       
       
       
-      ptr = startCaptureNative(filename, format, decklink, captureSettingsPtr);
+      if(recordAudio)
+      {
+         ptr = startCaptureNativeWithAudio(filename, format, decklink, captureSettingsPtr);         
+      }
+      else
+      {
+         ptr = startCaptureNative(filename, format, decklink, captureSettingsPtr);
+      }
       if (ptr == 0)
       {
          throw new IOException("Cannot open capture card");
