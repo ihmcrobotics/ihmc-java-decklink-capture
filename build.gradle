@@ -22,7 +22,7 @@ mainClassName = "us.ihmc.javadecklink.Stream"
 
 mainDependencies
 {
-   compile("us.ihmc:ihmc-native-library-loader:1.2")
+   compile("us.ihmc:ihmc-native-library-loader:1.2.1")
    compile("com.martiansoftware:jsap:2.1")
 }
 
