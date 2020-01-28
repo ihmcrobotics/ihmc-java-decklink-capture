@@ -8,7 +8,7 @@ plugins {
 
 ihmc {
    group = "us.ihmc"
-   version = "0.3.2"
+   version = "0.3.3"
    vcsUrl = "https://github.com/ihmcrobotics/ihmc-java-decklink-capture"
    openSource = true
 
@@ -22,7 +22,7 @@ mainClassName = "us.ihmc.javadecklink.Stream"
 
 mainDependencies
 {
-   compile("us.ihmc:ihmc-native-library-loader:1.2")
+   compile("us.ihmc:ihmc-native-library-loader:1.2.1")
    compile("com.martiansoftware:jsap:2.1")
 }
 
