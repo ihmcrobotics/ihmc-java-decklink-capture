@@ -6,7 +6,7 @@ plugins {
 
 ihmc {
    group = "us.ihmc"
-   version = "0.3.3"
+   version = "0.3.4"
    vcsUrl = "https://github.com/ihmcrobotics/ihmc-java-decklink-capture"
    openSource = true
 
