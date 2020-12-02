@@ -19,7 +19,7 @@ ihmc {
 app.entrypoint("Stream", "us.ihmc.javadecklink.Stream")
 
 mainDependencies {
-   api("us.ihmc:ihmc-native-library-loader:1.2.1")
+   api("us.ihmc:ihmc-native-library-loader:1.3.1")
    api("com.martiansoftware:jsap:2.1")
 }
 
