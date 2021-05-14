@@ -1,5 +1,7 @@
 # IHMC Java Decklink Capture
 
+[ ![ihmc-java-decklink-capture](https://maven-badges.herokuapp.com/maven-central/us.ihmc/ihmc-java-decklink-capture/badge.svg?style=plastic)](https://maven-badges.herokuapp.com/maven-central/us.ihmc/ihmc-java-decklink-capture)
+
 A simple JNI library that uses the Blackmagic Decklink SDK to capture video only to a MJPEG file. 
 capture control is provided trough a JNI interface
 
