@@ -335,6 +335,15 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 
 HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChangedEvents events, IDeckLinkDisplayMode *mode, BMDDetectedVideoInputFormatFlags formatFlags)
 {
+    if (!events)
+    {
+	    return S_OK;
+    }
+    if (!(events & 0) && !(events & 1) && !(events & 2))
+    {
+	    return S_OK;
+    }
+
     encoderMutex.lock();
 
     // This only gets called if bmdVideoInputEnableFormatDetection was set
@@ -767,9 +776,13 @@ jlong JNICALL startCaptureNative_Impl
 #ifdef DECKLINK_VERSION_10
 #warning "Compiling for decklink 10"
     BMDDisplayModeSupport                   displayModeSupported;
-#else
+#elseif DECKLINK_VERSION 11
     #warning "Compiling for decklink 11"
     bool			displayModeSupported;
+#else
+    #warning "Compiling for decklink 12"
+    bool			displayModeSupported;
+    BMDDisplayMode	actualDisplayMode;
 #endif
 
 	DeckLinkCaptureDelegate*		delegate = NULL;
@@ -902,11 +915,24 @@ jlong JNICALL startCaptureNative_Impl
 		fprintf(stderr, "The display mode %s is not supported with the selected pixel format\n", displayModeName);
 		goto bail;
 	}
-#else
+#elseif DECKLINK_VERSION 11
     // Check display mode is supported with given options
     result = g_deckLinkInput->DoesSupportVideoMode(bmdVideoConnectionUnspecified, displayMode->GetDisplayMode(), bmdFormat8BitYUV, bmdSupportedVideoModeDefault, &displayModeSupported);
     if (result != S_OK)
         goto bail;
+
+    if (!displayModeSupported)
+    {
+        fprintf(stderr, "The display mode %s is not supported with the selected pixel format\n", displayModeName);
+        goto bail;
+    }
+#else
+    // Check display mode is supported with given options
+    result = g_deckLinkInput->DoesSupportVideoMode(bmdVideoConnectionUnspecified, displayMode->GetDisplayMode(), bmdFormat8BitYUV, bmdNoVideoInputConversion, bmdSupportedVideoModeDefault, &actualDisplayMode, &displayModeSupported);
+    if (result != S_OK)
+        goto bail;
+
+    fprintf(stdout, "Actual display mode %d", actualDisplayMode);
 
     if (!displayModeSupported)
     {
