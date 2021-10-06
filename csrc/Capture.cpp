@@ -370,18 +370,38 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
 
     if (decklinkInput)
     {
-        decklinkInput->StopStreams();
+        BMDTimeValue numerator;
+        BMDTimeScale denumerator;
+
+        mode->GetFrameRate(&numerator, &denumerator);
 
         if(codec)
         {
-            printf("Cannot change video resolution while capturing. Stopping capture.\n");
-            env->CallVoidMethod(obj, stop);
-            goto bail;
+            if (c->width != mode->GetWidth() || c->height != mode->GetHeight())
+            {
+                decklinkInput->StopStreams();
+                printf("Cannot change video resolution while capturing. Stopping capture.\n");
+                env->CallVoidMethod(obj, stop);
+                goto bail;
+            }
+            else if (c->time_base.den != denumerator || c->time_base.num != numerator)
+            {
+                decklinkInput->StopStreams();
+                printf("Cannot change video frame rate while capturing. Stopping capture.\n");
+                env->CallVoidMethod(obj, stop);
+                goto bail;
+            }
+            else
+            {
+                printf("[WARNING] Format changed, attempting to pursue capture.");
+                goto bail;
+            }
         }
 
-	
+        decklinkInput->StopStreams();
+
         codec = avcodec_find_encoder(settings->codec);
-	printf("Using encoder %s\n", codec->name);
+        printf("Using encoder %s\n", codec->name);
 
         if (!codec) {
             printf("codec not found\n");
@@ -420,12 +440,6 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChan
         c->width = mode->GetWidth();
         c->height = mode->GetHeight();
         /* frames per second */
-
-        BMDTimeValue numerator;
-        BMDTimeScale denumerator;
-
-        mode->GetFrameRate(&numerator, &denumerator);
-
 
         c->time_base.den = denumerator;
         c->time_base.num = numerator;
@@ -931,8 +945,6 @@ jlong JNICALL startCaptureNative_Impl
     result = g_deckLinkInput->DoesSupportVideoMode(bmdVideoConnectionUnspecified, displayMode->GetDisplayMode(), bmdFormat8BitYUV, bmdNoVideoInputConversion, bmdSupportedVideoModeDefault, &actualDisplayMode, &displayModeSupported);
     if (result != S_OK)
         goto bail;
-
-    fprintf(stdout, "Actual display mode %d", actualDisplayMode);
 
     if (!displayModeSupported)
     {
