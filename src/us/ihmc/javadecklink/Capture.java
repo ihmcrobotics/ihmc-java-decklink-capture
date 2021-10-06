@@ -4,6 +4,13 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.locks.ReentrantLock;
 
+import com.martiansoftware.jsap.FlaggedOption;
+import com.martiansoftware.jsap.JSAP;
+import com.martiansoftware.jsap.JSAPException;
+import com.martiansoftware.jsap.JSAPResult;
+import com.martiansoftware.jsap.Parameter;
+import com.martiansoftware.jsap.SimpleJSAP;
+
 import us.ihmc.tools.nativelibraries.NativeLibraryLoader;
 
 public class Capture
@@ -237,28 +244,124 @@ public class Capture
       lock.unlock();
    }
 
-   public static void main(String[] args) throws IOException, InterruptedException
+   /**
+    * Performs a video capture test. Allows to check which card ID maps to which camera. To see
+    * options, run with the argument "--help".
+    */
+   public static void main(String[] args) throws IOException, InterruptedException, JSAPException
    {
-      CaptureHandlerImpl captureHandlerImpl = new CaptureHandlerImpl();
-      final Capture capture;
-      if (args.length > 0 && args[0].contains("264"))
+      SimpleJSAP jsap = new SimpleJSAP("Capture test",
+                                       "Test capture of one or more video capture card",
+                                       new Parameter[] {
+                                             new FlaggedOption("codec",
+                                                               JSAP.STRING_PARSER,
+                                                               "MJPEG",
+                                                               JSAP.NOT_REQUIRED,
+                                                               'c',
+                                                               "codec",
+                                                               "Codec either: H264 or MJPEG"),
+                                             new FlaggedOption("outputPath",
+                                                               JSAP.STRING_PARSER,
+                                                               ".",
+                                                               JSAP.NOT_REQUIRED,
+                                                               'p',
+                                                               "path",
+                                                               "Path to directory where video file(s) are to be saved"),
+                                             new FlaggedOption("videoQuality",
+                                                               JSAP.DOUBLE_PARSER,
+                                                               String.valueOf(0.85),
+                                                               JSAP.NOT_REQUIRED,
+                                                               'q',
+                                                               "quality",
+                                                               "Video quality for MJPEG"),
+                                             new FlaggedOption("crf",
+                                                               JSAP.INTEGER_PARSER,
+                                                               String.valueOf(23),
+                                                               JSAP.NOT_REQUIRED,
+                                                               'r',
+                                                               "crf",
+                                                               "CRF (Constant rate factor) for H264. 0-51, 0 is lossless. Sane values are 18 to 28."),
+                                             new FlaggedOption("captureDuration",
+                                                               JSAP.INTEGER_PARSER,
+                                                               "5000",
+                                                               JSAP.NOT_REQUIRED,
+                                                               'd',
+                                                               "duration",
+                                                               "Capture duration in milliseconds for each capture card"),
+                                             new FlaggedOption("firstDecklinkId",
+                                                               JSAP.INTEGER_PARSER,
+                                                               String.valueOf(0),
+                                                               JSAP.NOT_REQUIRED,
+                                                               'f',
+                                                               "firstId",
+                                                               "ID of the first capture card to test"),
+                                             new FlaggedOption("lastDecklinkId",
+                                                               JSAP.INTEGER_PARSER,
+                                                               String.valueOf(-1),
+                                                               JSAP.NOT_REQUIRED,
+                                                               'l',
+                                                               "lastId",
+                                                               "ID of the last capture card to test")});
+      JSAPResult config = jsap.parse(args);
+      if (jsap.messagePrinted())
       {
-         capture = new Capture(captureHandlerImpl, CodecID.AV_CODEC_ID_H264);
-         //	capture.setMJPEGQuality(0.9);
-         capture.setOption("preset", "medium");
-         capture.setOption("g", "1");
-         capture.setOption("crf", "25");
+         System.out.println(jsap.getUsage());
+         System.out.println(jsap.getHelp());
+         System.exit(-1);
       }
-      else
-      {
-         capture = new Capture(captureHandlerImpl, CodecID.AV_CODEC_ID_MJPEG);
-         capture.setMJPEGQuality(0.9);
-      }
-      captureHandlerImpl.setCapture(capture);
-      capture.startCapture("aap.mp4", 1);
 
-      Thread.sleep(5000);
-      capture.stopCapture();
+      int firstId = config.getInt("firstDecklinkId");
+      int lastId = config.getInt("lastDecklinkId");
+      if (lastId < firstId)
+         lastId = firstId;
+      String outputPath = config.getString("outputPath");
+      int duration = config.getInt("captureDuration");
+      CodecID codec = config.getString("codec").contains("264") ? CodecID.AV_CODEC_ID_H264 : CodecID.AV_CODEC_ID_MJPEG;
+
+      for (int id = firstId; id <= lastId; id++)
+      {
+         try
+         {
+            CaptureHandlerImpl captureHandlerImpl = new CaptureHandlerImpl();
+            final Capture capture;
+
+            switch (codec)
+            {
+               case AV_CODEC_ID_H264:
+                  capture = new Capture(captureHandlerImpl, CodecID.AV_CODEC_ID_H264);
+                  capture.setOption("g", "1");
+                  capture.setOption("crf", String.valueOf(config.getInt("crf")));
+                  capture.setOption("profile", "high");
+                  capture.setOption("coder", "vlc");
+                  break;
+               case AV_CODEC_ID_MJPEG:
+                  capture = new Capture(captureHandlerImpl, CodecID.AV_CODEC_ID_MJPEG);
+                  capture.setMJPEGQuality(config.getDouble("videoQuality"));
+                  break;
+               default:
+                  throw new RuntimeException();
+            }
+            captureHandlerImpl.setCapture(capture);
+            capture.startCapture(outputPath + "capture" + id + ".mp4", id);
+
+            try
+            {
+               Thread.sleep(duration);
+            }
+            catch (InterruptedException e)
+            {
+               break;
+            }
+            finally
+            {
+               capture.stopCapture();
+            }
+         }
+         catch (Exception e)
+         {
+            e.printStackTrace();
+         }
+      }
    }
 
    private static class CaptureHandlerImpl implements CaptureHandler
