@@ -30,8 +30,11 @@ public class Capture
    }
 
    static private boolean loaded = false;
-   private static final String LIBAV_SUPPORTED_VERSIONS[] = {"-desktopvideo10.8.5-avcodec56-swscale3-avformat56-ffmpeg",
-         "-desktopvideo11.2-avcodec57-swscale4-avformat57", "-desktopvideo12.1-avcodec56-swscale3-avformat56-ffmpeg"};
+   private static final String LIBAV_SUPPORTED_VERSIONS[] = {
+         "-desktopvideo10.8.5-avcodec56-swscale3-avformat56-ffmpeg",
+         "-desktopvideo11.2-avcodec57-swscale4-avformat57",
+         "-desktopvideo12.1-avcodec56-swscale3-avformat56-ffmpeg",
+         "-desktopvideo12.1-avcodec58-swscale5-avformat58"};
    private final ReentrantLock lock = new ReentrantLock();
    static
    {
@@ -116,7 +119,6 @@ public class Capture
       this.codec = codec;
       this.captureHandler = captureHandler;
       this.captureSettingsPtr = createCaptureSettings(codec.id);
-
    }
 
    /**
@@ -262,11 +264,11 @@ public class Capture
                                                                "Codec either: H264 or MJPEG"),
                                              new FlaggedOption("outputPath",
                                                                JSAP.STRING_PARSER,
-                                                               ".",
+                                                               "",
                                                                JSAP.NOT_REQUIRED,
                                                                'p',
                                                                "path",
-                                                               "Path to directory where video file(s) are to be saved"),
+                                                               "Path to directory where video file(s) are to be saved, expected to end with '/'."),
                                              new FlaggedOption("videoQuality",
                                                                JSAP.DOUBLE_PARSER,
                                                                String.valueOf(0.85),

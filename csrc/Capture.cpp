@@ -36,7 +36,6 @@
 #include <string>
 
 
-
 #include "DeckLinkAPI.h"
 #include "Capture.h"
 #include "Util.hpp"
@@ -44,7 +43,15 @@
 
 #include <time.h>
 
+// Compatibility for avcodec58
+#ifndef CODEC_FLAG_GLOBAL_HEADER
+	#define CODEC_FLAG_GLOBAL_HEADER AV_CODEC_FLAG_GLOBAL_HEADER
+#endif
 
+// Compatibility for avcodec58
+#ifndef CODEC_FLAG_QSCALE
+	#define CODEC_FLAG_QSCALE AV_CODEC_FLAG_QSCALE
+#endif
 
 class ThreadJNIEnv {
 public:
@@ -748,15 +755,10 @@ JNIEXPORT void JNICALL Java_us_ihmc_javadecklink_Capture_setOption
     const char* cvalue = env->GetStringUTFChars(value,0);
     std::string cppvalue(cvalue);
     env->ReleaseStringUTFChars(value, cvalue);
-    
-
 
 	DecklinkCaptureSettings* settings = (DecklinkCaptureSettings*) ptr;
 	settings->options.push_back(std::make_pair(cppoption, cppvalue));
 }
-
-
-
 
 JNIEXPORT jlong JNICALL Java_us_ihmc_javadecklink_Capture_getHardwareTime
   (JNIEnv *, jobject, jlong ptr)
@@ -776,7 +778,6 @@ JNIEXPORT void JNICALL Java_us_ihmc_javadecklink_Capture_stopCaptureNative
 jlong JNICALL startCaptureNative_Impl
 (JNIEnv *env, jobject obj, jstring filename, jstring jformat, jboolean recordAudio, jint device, jlong settingsPtr)
 {
-
 	DecklinkCaptureSettings* settings = (DecklinkCaptureSettings*) settingsPtr;
 
 
@@ -915,7 +916,6 @@ jlong JNICALL startCaptureNative_Impl
 		displayModeName = (char *)malloc(32);
         snprintf(displayModeName, 32, "[index %d]", displayModeId);
 	}
-
 
 #ifdef DECKLINK_VERSION_10
 

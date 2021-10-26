@@ -9,6 +9,18 @@ capture control is provided trough a JNI interface
 
 
 ### Ubuntu 18.04
+Get "Desktop Video 12.1" from [https://www.blackmagicdesign.com/support/family/capture-and-playback](https://www.blackmagicdesign.com/support/family/capture-and-playback).
+
+Install avcodec dependencies. On ubuntu 20.04 run
+
+```
+apt install libavformat58 libavcodec58 libswscale5
+```
+
+Native libraries are provided for
+- Ubuntu 20.04
+
+### Ubuntu 18.04
 Get "Desktop Video 11.2" from [https://www.blackmagicdesign.com/support/family/capture-and-playback](https://www.blackmagicdesign.com/support/family/capture-and-playback).
 
 Install avcodec dependencies. On ubuntu 18.04 run
@@ -38,7 +50,7 @@ Libraries are tested one by one in the runtime till one loads.
 
 ## Compilation
 
-Download the matching Desktop Video SDK from [https://www.blackmagicdesign.com/support/family/capture-and-playback](https://www.blackmagicdesign.com/support/family/capture-and-playback). For Ubuntu 18.04, download version 11.2, for 16.04 version 10.8.5.
+Download the matching Desktop Video SDK from [https://www.blackmagicdesign.com/support/family/capture-and-playback](https://www.blackmagicdesign.com/support/family/capture-and-playback). For Ubuntu 20.04, download version 12.1, for 18.04 version 11.2, and for 16.04 version 10.8.5.
 
 
 Place the Blackmagic Desktop Video SDK in the root folder of this distribution. It will get unzipped by the build file. The SDK is not included due to licensing issues.
@@ -54,3 +66,5 @@ make install
 A new version is now placed in resources/us/ihmc/javaDecklink/lib. Note the version as in libJavadecklink[version].so. 
 
 Go in src/us/ihmc/javadecklink/Capture.java and add this version to LIBAV_SUPPORTED_VERSIONS.
+
+Note: Known incompatibility with gcc-9. Compatible with ggc-5.
