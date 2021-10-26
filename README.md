@@ -8,7 +8,7 @@ capture control is provided trough a JNI interface
 ## Requirements
 
 
-### Ubuntu 18.04
+### Ubuntu 20.04
 Get "Desktop Video 12.1" from [https://www.blackmagicdesign.com/support/family/capture-and-playback](https://www.blackmagicdesign.com/support/family/capture-and-playback).
 
 Install avcodec dependencies. On ubuntu 20.04 run
